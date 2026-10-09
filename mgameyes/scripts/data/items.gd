@@ -9,6 +9,11 @@ const DATA := {
 		"desc": "Ближний бой, 10 урона. Ломает ящики и решётки.",
 		"kind": "weapon",
 	},
+	"demon_blade": {
+		"name": "Демонический клинок",
+		"desc": "Слеза Луны в стали: 20 урона, длинный взмах.",
+		"kind": "weapon",
+	},
 	"bow": {
 		"name": "Лук разведчика",
 		"desc": "Стрелы в сторону курсора, 8 урона.",
@@ -59,6 +64,11 @@ static func draw_icon(ci: CanvasItem, id: String, rect: Rect2) -> void:
 			ci.draw_line(c + Vector2(-16, 16) * s, c + Vector2(18, -18) * s, Color(0.8, 0.82, 0.88), 6 * s)
 			ci.draw_line(c + Vector2(-18, 4) * s, c + Vector2(-4, 18) * s, Color(0.45, 0.3, 0.15), 5 * s)
 			ci.draw_line(c + Vector2(-16, 16) * s, c + Vector2(-22, 22) * s, Color(0.45, 0.3, 0.15), 5 * s)
+		"demon_blade":
+			ci.draw_line(c + Vector2(-16, 16) * s, c + Vector2(20, -20) * s, Color(0.35, 0.05, 0.1), 7 * s)
+			ci.draw_line(c + Vector2(-14, 14) * s, c + Vector2(18, -18) * s, Color(0.6, 0.85, 1.0), 2 * s)
+			ci.draw_line(c + Vector2(-18, 4) * s, c + Vector2(-4, 18) * s, Color(0.15, 0.1, 0.12), 5 * s)
+			ci.draw_circle(c + Vector2(-11, 11) * s, 4 * s, Color(0.6, 0.85, 1.0))
 		"bow":
 			# лук как на концепте: дуга, тетива и стрела вправо
 			ci.draw_arc(c + Vector2(-6, 0) * s, 16 * s, -PI / 2, PI / 2, 16, Color(0.5, 0.3, 0.12), 4 * s)

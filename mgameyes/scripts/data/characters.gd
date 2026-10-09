@@ -12,6 +12,8 @@ const LOOKS := {
 	"old_man": {"body": Color(0.5, 0.42, 0.35), "line": Color(0.25, 0.2, 0.15), "h": 50, "beard": Color(0.92, 0.92, 0.92), "hair": Color(0.92, 0.92, 0.92), "staff": true, "chains": true},
 	"parius": {"body": Color(0.28, 0.28, 0.32), "line": Color(0.1, 0.1, 0.12), "h": 54, "cape": Color(0.6, 0.08, 0.08), "helmet": Color(0.45, 0.45, 0.5)},
 	"parius_demon": {"body": Color(0.16, 0.12, 0.14), "line": Color(0.05, 0.0, 0.0), "h": 54, "cape": Color(0.35, 0.02, 0.02), "helmet": Color(0.2, 0.15, 0.15), "eyes": Color(1, 0.2, 0.1), "aura": Color(0.8, 0.1, 0.05)},
+	"parius_possessed": {"body": Color(0.08, 0.06, 0.1), "line": Color(0.0, 0.0, 0.0), "h": 58, "cape": Color(0.15, 0.05, 0.25), "helmet": Color(0.12, 0.1, 0.16), "eyes": Color(0.85, 0.95, 1.0), "aura": Color(0.45, 0.2, 0.9)},
+	"tizhen": {"body": Color(0.45, 0.4, 0.55), "line": Color(0.2, 0.18, 0.28), "h": 52, "cape": Color(0.3, 0.55, 0.45), "hair": Color(0.92, 0.92, 0.95)},
 	"dis": {"body": Color(0.3, 0.45, 0.75), "line": Color(0.12, 0.2, 0.4), "h": 52, "cape": Color(0.85, 0.75, 0.3), "hair": Color(0.85, 0.65, 0.3)},
 	"elf": {"body": Color(0.25, 0.65, 0.65), "line": Color(0.1, 0.3, 0.3), "h": 46, "ears": true},
 	"elf_child": {"body": Color(0.35, 0.75, 0.7), "line": Color(0.1, 0.3, 0.3), "h": 30, "ears": true, "hair": Color(0.95, 0.9, 0.6)},
@@ -22,7 +24,7 @@ const LOOKS := {
 const NAMES := {
 	"yavalen": "Явален", "father": "Отец", "smith": "Кузнец", "farmer": "Крестьянин",
 	"prisoner": "Пленник", "old_man": "Старик", "parius": "Париус", "parius_demon": "Париус",
-	"dis": "Дис", "elf": "Эльф", "elf_child": "Эльфёнок", "liael": "Лиаэль", "elf_mage": "Верховный маг",
+	"dis": "Дис", "tizhen": "Тижен", "parius_possessed": "Пегрус", "elf": "Эльф", "elf_child": "Эльфёнок", "liael": "Лиаэль", "elf_mage": "Верховный маг",
 }
 
 

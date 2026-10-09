@@ -8,6 +8,7 @@ const WalkerScript := preload("res://scripts/level/enemy_walker.gd")
 const ArcherScript := preload("res://scripts/level/enemy_archer.gd")
 const BossScript := preload("res://scripts/level/enemy_boss.gd")
 const DuelistScript := preload("res://scripts/level/enemy_duelist.gd")
+const ArchmageScript := preload("res://scripts/level/enemy_archmage.gd")
 const Themes := preload("res://scripts/data/themes.gd")
 const NpcScript := preload("res://scripts/level/npc.gd")
 const CampScript := preload("res://scripts/level/camp.gd")
@@ -33,6 +34,8 @@ var goal := "enemies"
 ## а герой не может атаковать изнутри.
 var safe_rect := Rect2()
 var _npc_count := 0
+## «Помехи»: голоса, которые герой слышит, дойдя до нужного места
+var _echoes: Array = []
 
 var _terrain_rects: Array = []  # [Rect2, платформа?]
 var theme_id := "road"
@@ -54,11 +57,22 @@ func _ready() -> void:
 	hud.setup(self)
 	hud.dialog.show_lines(location.get("intro", []))
 	GameState.skill_revealed.connect(_on_skill_revealed)
+	_echoes = location.get("echoes", []).duplicate()
 	if goal.begins_with("item:"):
 		GameState.inventory_changed.connect(_check_item_goal)
 		_check_item_goal.call_deferred()
 	elif enemies_alive == 0:
 		_on_location_cleared.call_deferred()
+
+
+func _process(_delta: float) -> void:
+	if player == null or _echoes.is_empty() or hud.dialog.is_open():
+		return
+	var e: Array = _echoes[0]
+	if player.global_position.x >= e[0] * TILE:
+		_echoes.pop_front()
+		hud.glitch(1.6)
+		hud.dialog.show_lines(e[1])
 
 
 func goal_text() -> String:
@@ -177,19 +191,21 @@ func _spawn_entity(ch: String, x: int, y: int) -> void:
 			player.died.connect(_on_player_died)
 			add_child(player)
 			_setup_camera()
-		"e", "W", "r", "G":
+		"e", "W", "r", "G", "f":
 			var w := WalkerScript.new()
-			w.variant = {"e": "elf", "W": "demon", "r": "rat", "G": "guardian"}[ch]
+			w.variant = {"e": "elf", "W": "demon", "r": "rat", "G": "guardian", "f": "frost"}[ch]
 			_add_enemy(w, feet)
 		"a", "m":
 			var a := ArcherScript.new()
 			a.variant = "elf" if ch == "a" else "mage"
 			_add_enemy(a, feet)
-		"L", "Y":
+		"L", "Y", "T":
 			var d := DuelistScript.new()
-			d.look = "liael" if ch == "L" else "yavalen"
-			d.display_name = "Лиаэль" if ch == "L" else "Явален"
+			d.look = {"L": "liael", "Y": "yavalen", "T": "tizhen"}[ch]
+			d.display_name = {"L": "Лиаэль", "Y": "Явален", "T": "Тижен"}[ch]
 			_add_enemy(d, feet)
+		"Z":
+			_add_enemy(ArchmageScript.new(), feet)
 		"A":
 			var a := ArcherScript.new()
 			a.variant = "demon"

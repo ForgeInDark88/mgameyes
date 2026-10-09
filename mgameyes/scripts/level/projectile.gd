@@ -85,6 +85,13 @@ func _draw() -> void:
 			draw_colored_polygon(PackedVector2Array([Vector2(-dir * 10, y - 6), Vector2(dir * len, y), Vector2(-dir * 10, y + 6)]), Color(1, 0.85, 0.4, 0.85))
 		draw_rect(Rect2(-6, -32, 12, 64), Color(1, 1, 0.9, 0.8))
 		return
+	if kind == "glaive":
+		var a := _t * 20.0
+		for k in 2:
+			var d := Vector2.from_angle(a + k * PI)
+			draw_line(-d * 14, d * 14, Color(0.35, 0.25, 0.15), 3.0)
+			draw_arc(d * 14, 9, a + k * PI - 1.4, a + k * PI + 0.4, 6, color, 3.0)
+		return
 	if kind == "magic":
 		draw_circle(Vector2.ZERO, 9, Color(0.6, 0.8, 1.0, 0.6))
 		draw_circle(Vector2.ZERO, 5, Color.WHITE)
