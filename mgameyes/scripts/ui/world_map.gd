@@ -1,13 +1,14 @@
 extends Control
-## Общая карта мира: локации открываются по мере прохождения сюжета.
+## Общая карта трёх царств. Локации кампании открываются по мере прохождения сюжета.
 
 const UI := preload("res://scripts/ui/ui_util.gd")
 const Items := preload("res://scripts/data/items.gd")
-const Locations := preload("res://scripts/data/locations.gd")
+const KingdomMap := preload("res://scripts/ui/kingdom_map.gd")
 const DialogScript := preload("res://scripts/ui/dialog_box.gd")
 const HotbarScript := preload("res://scripts/ui/hotbar.gd")
-const NODE_R := 34.0
+const NODE_R := 30.0
 
+var order: Array = []
 var selected := 0
 var dialog: Control
 var _t := 0.0
@@ -15,10 +16,10 @@ var _t := 0.0
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	order = GameState.location_order()
 	# по умолчанию выбираем первую незачищенную открытую локацию
-	for i in Locations.ORDER.size():
-		var id: String = Locations.ORDER[i]
-		if GameState.is_unlocked(id) and not GameState.is_cleared(id):
+	for i in order.size():
+		if GameState.is_unlocked(order[i]) and not GameState.is_cleared(order[i]):
 			selected = i
 			break
 
@@ -30,12 +31,9 @@ func _ready() -> void:
 	add_child(dialog)
 	dialog.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM, Control.PRESET_MODE_KEEP_SIZE, 130)
 
-	if not GameState.flags.get("intro_seen", false):
-		GameState.flags["intro_seen"] = true
-		dialog.show_lines(Locations.WORLD_INTRO)
-	elif GameState.all_cleared() and not GameState.flags.get("ending_seen", false):
-		GameState.flags["ending_seen"] = true
-		dialog.show_lines(Locations.WORLD_ENDING)
+	if GameState.all_cleared() and not GameState.flag("ending_seen"):
+		GameState.set_flag("ending_seen")
+		dialog.show_lines(GameState.campaign().get("ending", []))
 	GameState.save_game()
 
 
@@ -44,15 +42,11 @@ func _process(delta: float) -> void:
 	queue_redraw()
 
 
-func _loc_id(i: int) -> String:
-	return Locations.ORDER[i]
-
-
 func _unhandled_input(event: InputEvent) -> void:
 	if dialog.is_open():
 		return
 	if event.is_action_pressed("move_right") or event.is_action_pressed("ui_right"):
-		selected = mini(selected + 1, Locations.ORDER.size() - 1)
+		selected = mini(selected + 1, order.size() - 1)
 	elif event.is_action_pressed("move_left") or event.is_action_pressed("ui_left"):
 		selected = maxi(selected - 1, 0)
 	elif event.is_action_pressed("ui_accept"):
@@ -61,7 +55,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		GameState.save_game()
 		GameState.go_to_main_menu()
 	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		for i in Locations.ORDER.size():
+		for i in order.size():
 			if event.position.distance_to(_node_pos(i)) < NODE_R:
 				if selected == i:
 					_enter(i)
@@ -69,73 +63,79 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _enter(i: int) -> void:
-	var id := _loc_id(i)
-	if GameState.is_unlocked(id):
-		GameState.enter_location(id)
+	if GameState.is_unlocked(order[i]):
+		GameState.enter_location(order[i])
+
+
+func _offset() -> Vector2:
+	# карта нарисована под 1280x720 — центрируем при другом размере окна
+	return (size - Vector2(1280, 720)) / 2.0
 
 
 func _node_pos(i: int) -> Vector2:
-	var p: Vector2 = Locations.get_location(_loc_id(i)).map_pos
-	# карта нарисована под 1280x720 — центрируем при другом размере окна
-	return p + (size - Vector2(1280, 720)) / 2.0
+	return GameState.get_location(order[i]).map_pos + _offset()
 
 
 func _draw() -> void:
+	var off := _offset()
 	draw_rect(Rect2(Vector2.ZERO, size), Color(0.9, 0.86, 0.74))
-	var off := (size - Vector2(1280, 720)) / 2.0
-	# декорации карты: горы, лес, река
-	for x in [700, 760, 820, 1060, 1120]:
-		var b := off + Vector2(x, 230)
-		draw_colored_polygon(PackedVector2Array([b, b + Vector2(40, -70), b + Vector2(80, 0)]), Color(0.6, 0.55, 0.5))
-	for i in 12:
-		var tpos := off + Vector2(110 + (i % 6) * 34, 560 + (i / 6) * 30)
-		draw_circle(tpos, 14, Color(0.35, 0.6, 0.3))
-	draw_polyline(PackedVector2Array([off + Vector2(0, 640), off + Vector2(400, 600), off + Vector2(700, 650), off + Vector2(1280, 590)]),
-		Color(0.45, 0.65, 0.85), 10.0)
-	UI.text(self, Vector2(0, 50), "Карта долины", 34, Color(0.25, 0.2, 0.15), HORIZONTAL_ALIGNMENT_CENTER, size.x)
+	KingdomMap.draw_map(self, off, "", GameState.flag("demons_revealed"), _t)
+	UI.text(self, Vector2(0, 50), "Карта трёх царств", 32, Color(0.25, 0.2, 0.15), HORIZONTAL_ALIGNMENT_CENTER, size.x)
 
 	# дороги между локациями
-	for i in Locations.ORDER.size():
-		var loc := Locations.get_location(_loc_id(i))
-		for req in loc.requires:
-			var j := Locations.ORDER.find(req)
-			var col := Color(0.45, 0.33, 0.2) if GameState.is_unlocked(_loc_id(i)) else Color(0.6, 0.55, 0.5)
+	for i in order.size():
+		if _hidden(order[i]):
+			continue
+		for req in GameState.get_location(order[i]).get("requires", []):
+			var j := order.find(req)
+			var col := Color(0.45, 0.3, 0.15) if GameState.is_unlocked(order[i]) else Color(0.55, 0.5, 0.45)
 			_dashed(_node_pos(j), _node_pos(i), col)
 
-	for i in Locations.ORDER.size():
-		var id := _loc_id(i)
-		var loc := Locations.get_location(id)
-		var p := _node_pos(i)
+	for i in order.size():
+		var id: String = order[i]
+		var loc := GameState.get_location(id)
 		var unlocked := GameState.is_unlocked(id)
-		var done := GameState.is_cleared(id)
+		if _hidden(id):
+			continue
+		var p := _node_pos(i)
 		var fill := Color(0.55, 0.55, 0.55)
-		if done:
+		if GameState.is_cleared(id):
 			fill = Color(0.2, 0.7, 0.35)
 		elif unlocked:
 			fill = Color(0.9, 0.25, 0.2)
 		if i == selected:
-			draw_circle(p, NODE_R + 8 + sin(_t * 4.0) * 3.0, Color(1, 0.85, 0.2, 0.7))
+			draw_circle(p, NODE_R + 8 + sin(_t * 4.0) * 3.0, Color(1, 0.85, 0.2, 0.8))
 		draw_circle(p, NODE_R, fill)
 		draw_arc(p, NODE_R, 0, TAU, 32, Color.BLACK, 3.0)
-		var mark := "✓" if done else ("!" if unlocked else "?")
-		UI.text(self, p + Vector2(-NODE_R, 11), mark, 30, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER, NODE_R * 2)
-		UI.text(self, p + Vector2(-120, NODE_R + 24), loc.name, 18, Color(0.2, 0.15, 0.1), HORIZONTAL_ALIGNMENT_CENTER, 240)
+		var mark := "✓" if GameState.is_cleared(id) else ("!" if unlocked else "?")
+		UI.text(self, p + Vector2(-NODE_R, 10), mark, 28, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER, NODE_R * 2)
+		draw_rect(Rect2(p + Vector2(-95, NODE_R + 6), Vector2(190, 24)), Color(1, 1, 0.95, 0.8))
+		UI.text(self, p + Vector2(-95, NODE_R + 24), loc.name, 16, Color(0.2, 0.15, 0.1), HORIZONTAL_ALIGNMENT_CENTER, 190)
 
 	# информация о выбранной локации
-	var sel := Locations.get_location(_loc_id(selected))
-	var r := Rect2(off + Vector2(860, 90), Vector2(390, 120))
+	var sel_id: String = order[selected]
+	var sel := GameState.get_location(sel_id)
+	var hidden := _hidden(sel_id)
+	var r := Rect2(Vector2(16, size.y - 136), Vector2(305, 120))
 	UI.panel(self, r, Color(1, 1, 0.95, 0.95))
-	UI.text(self, r.position + Vector2(14, 30), sel.name, 22, Color(0.1, 0.1, 0.1))
-	draw_multiline_string(UI.font(), r.position + Vector2(14, 58), sel.desc, HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 28, 16, -1, Color(0.25, 0.25, 0.25))
+	UI.text(self, r.position + Vector2(14, 28), "???" if hidden else sel.name, 20, Color(0.1, 0.1, 0.1))
+	draw_multiline_string(UI.font(), r.position + Vector2(14, 54), "Скрыто пеленой." if hidden else sel.desc,
+		HORIZONTAL_ALIGNMENT_LEFT, r.size.x - 28, 15, -1, Color(0.25, 0.25, 0.25))
 	var status := ""
-	if GameState.is_cleared(_loc_id(selected)):
-		status = "Зачищено. Награда: %s" % Items.get_item(sel.reward).name
-	elif GameState.is_unlocked(_loc_id(selected)):
+	if GameState.is_cleared(sel_id):
+		var reward: String = sel.get("reward", "")
+		status = "Пройдено" + (". Награда: %s" % Items.get_item(reward).name if reward != "" else "")
+	elif GameState.is_unlocked(sel_id):
 		status = "Enter / клик — войти"
 	else:
 		status = "Закрыто: сначала пройди предыдущую локацию"
-	UI.text(self, r.position + Vector2(14, r.size.y - 14), status, 15, Color(0.5, 0.3, 0.1))
-	UI.text(self, Vector2(16, 28), "Esc — главное меню", 14, Color(0.4, 0.35, 0.3))
+	UI.text(self, r.position + Vector2(14, r.size.y - 12), status, 14, Color(0.5, 0.3, 0.1))
+	UI.text(self, Vector2(size.x - 200, 28), "Esc — главное меню", 14, Color(0.3, 0.25, 0.2))
+
+
+## Локации в скрытом царстве не видны, пока пелена не спала.
+func _hidden(id: String) -> bool:
+	return GameState.get_location(id).get("kingdom", "") == "demons" and not GameState.flag("demons_revealed")
 
 
 func _dashed(a: Vector2, b: Vector2, col: Color) -> void:

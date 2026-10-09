@@ -3,7 +3,7 @@ extends StaticBody2D
 
 const SIZE := 32.0
 
-var hp := 2
+var hp := 20
 
 
 func _ready() -> void:
@@ -29,6 +29,6 @@ func _draw() -> void:
 	draw_rect(r, Color(0.72, 0.47, 0.32))
 	draw_rect(r, Color(0.4, 0.24, 0.14), false, 2.0)
 	draw_line(Vector2(-SIZE / 2, 2), Vector2(SIZE / 2, -1), Color(0.4, 0.24, 0.14), 1.5)
-	if hp <= 1:
+	if hp <= 10:
 		draw_line(Vector2(-8, -12), Vector2(2, 0), Color(0.25, 0.14, 0.08), 2.0)
 		draw_line(Vector2(2, 0), Vector2(-2, 12), Color(0.25, 0.14, 0.08), 2.0)

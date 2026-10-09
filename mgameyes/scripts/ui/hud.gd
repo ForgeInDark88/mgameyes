@@ -5,6 +5,7 @@ const UI := preload("res://scripts/ui/ui_util.gd")
 const HotbarScript := preload("res://scripts/ui/hotbar.gd")
 const MinimapScript := preload("res://scripts/ui/minimap.gd")
 const DialogScript := preload("res://scripts/ui/dialog_box.gd")
+const Skills := preload("res://scripts/data/skills.gd")
 
 var level: Node2D
 var dialog: Control
@@ -71,17 +72,26 @@ func _draw_top() -> void:
 	var p = level.player
 	if p == null:
 		return
-	# сердца
-	for i in p.max_hp:
-		var c := Vector2(30 + i * 34, 30)
-		var full: bool = i < p.hp
-		var col := Color(0.9, 0.15, 0.2) if full else Color(0.75, 0.75, 0.75)
-		_top.draw_circle(c + Vector2(-6, -3), 8, col)
-		_top.draw_circle(c + Vector2(6, -3), 8, col)
-		_top.draw_colored_polygon(PackedVector2Array([c + Vector2(-14, 0), c + Vector2(14, 0), c + Vector2(0, 15)]), col)
-	var enemies := get_tree().get_nodes_in_group("enemies").size()
-	var info := "Врагов осталось: %d" % enemies if not level.is_cleared else "Зачищено! Иди к выходу →"
-	UI.text(_top, Vector2(0, 36), info, 20, Color(0.15, 0.15, 0.15), HORIZONTAL_ALIGNMENT_RIGHT, _top.size.x - 20)
+	# полоска здоровья
+	var bar := Rect2(20, 18, 300, 22)
+	_top.draw_rect(bar, Color(0.2, 0.2, 0.22))
+	var ratio := clampf(float(p.hp) / p.max_hp, 0.0, 1.0)
+	var col := Color(0.85, 0.15, 0.2) if ratio > 0.3 else Color(1.0, 0.45, 0.1)
+	_top.draw_rect(Rect2(bar.position, Vector2(bar.size.x * ratio, bar.size.y)), col)
+	_top.draw_rect(bar, Color.BLACK, false, 2.0)
+	UI.text(_top, bar.position + Vector2(0, 17), "HP  %d / %d" % [p.hp, p.max_hp], 15, Color.WHITE,
+		HORIZONTAL_ALIGNMENT_CENTER, bar.size.x)
+	# навыки героя (скрытые показываются как «???»)
+	var x := 20.0
+	for id in GameState.skills:
+		var revealed := GameState.is_skill_revealed(id)
+		var r := Rect2(x, 48, 32, 32)
+		UI.panel(_top, r, Color(1, 1, 1, 0.9))
+		Skills.draw_icon(_top, id, r, revealed)
+		var label := "%s — %s" % [Skills.get_skill(id).name, Skills.get_skill(id).desc] if revealed else "??? — скрытый навык"
+		UI.text(_top, Vector2(x + 40, 70), label, 15, Color(0.15, 0.15, 0.15))
+		x += 300.0
+	UI.text(_top, Vector2(0, 36), level.goal_text(), 20, Color(0.15, 0.15, 0.15), HORIZONTAL_ALIGNMENT_RIGHT, _top.size.x - 20)
 	UI.text(_top, Vector2(0, 36), level.location.name, 24, Color(0.1, 0.1, 0.1), HORIZONTAL_ALIGNMENT_CENTER, _top.size.x)
 
 

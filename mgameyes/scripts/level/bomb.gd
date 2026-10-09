@@ -2,6 +2,7 @@ extends CharacterBody2D
 ## Брошенная бомба: отскакивает и взрывается через секунду.
 
 const RADIUS := 90.0
+const DAMAGE := 30
 
 var _fuse := 1.2
 var _exploded := 0.0
@@ -43,8 +44,8 @@ func _explode() -> void:
 	q.collision_mask = 1 | 4
 	for hit in get_world_2d().direct_space_state.intersect_shape(q, 32):
 		var c = hit.collider
-		if c and c.has_method("take_damage"):
-			c.take_damage(3, global_position)
+		if c:
+			GameState.player_hit(c, DAMAGE, global_position)
 
 
 func _draw() -> void:
