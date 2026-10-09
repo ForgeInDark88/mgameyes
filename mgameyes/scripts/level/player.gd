@@ -19,6 +19,7 @@ const MAX_FALL := 900.0
 const COYOTE_TIME := 0.1
 
 const SWORD_DAMAGE := 10
+const DEMON_BLADE_DAMAGE := 20
 const ARROW_DAMAGE := 8
 const POTION_HEAL := 40
 const SWING_TIME := 0.2
@@ -42,6 +43,8 @@ var _regen := 0.0
 var _t := 0.0
 ## Перезарядка активных навыков: id -> оставшиеся секунды
 var cooldowns := {}
+## Сколько ещё держится Щит рода (Явален)
+var shield_time := 0.0
 
 
 func _ready() -> void:
@@ -78,6 +81,7 @@ func _physics_process(delta: float) -> void:
 	_t += delta
 	for k in cooldowns:
 		cooldowns[k] = maxf(cooldowns[k] - delta, 0.0)
+	shield_time = maxf(shield_time - delta, 0.0)
 	queue_redraw()
 	if dead:
 		return
@@ -132,12 +136,12 @@ func _use_selected_item(just_pressed: bool) -> void:
 	var aim := (get_global_mouse_position() - center()).normalized()
 	if aim == Vector2.ZERO:
 		aim = Vector2(facing, 0)
-	if id in ["sword", "bow", "bomb"] and in_camp():
+	if id in ["sword", "demon_blade", "bow", "bomb"] and in_camp():
 		_camp_hint = 1.5
 		return
 	match id:
-		"sword":
-			_sword_attack(aim)
+		"sword", "demon_blade":
+			_sword_attack(aim, id == "demon_blade")
 			_cooldown = 0.3
 		"bow":
 			facing = 1 if aim.x >= 0.0 else -1
@@ -184,6 +188,8 @@ func _use_skill(id: String) -> void:
 			p.kind = "truth"
 			p.global_position = center() + Vector2(dir * 30, 0)
 			get_parent().add_child(p)
+		"erin_shield":
+			shield_time = sk.duration
 		"demon_burn":
 			var b := BurstScript.new()
 			b.global_position = center()
@@ -193,21 +199,21 @@ func _use_skill(id: String) -> void:
 			get_parent().add_child(b)
 
 
-func _sword_attack(aim: Vector2) -> void:
+func _sword_attack(aim: Vector2, demon := false) -> void:
 	_swing_dir = 1 if aim.x >= 0.0 else -1
 	facing = _swing_dir
 	_swing = SWING_TIME
 	var shape := RectangleShape2D.new()
-	shape.size = Vector2(64, 72)
+	shape.size = Vector2(84, 80) if demon else Vector2(64, 72)
 	var q := PhysicsShapeQueryParameters2D.new()
 	q.shape = shape
-	q.transform = Transform2D(0.0, center() + Vector2(_swing_dir * 42, -4))
+	q.transform = Transform2D(0.0, center() + Vector2(_swing_dir * (52 if demon else 42), -4))
 	q.collision_mask = 1 | 4
 	q.exclude = [get_rid()]
 	for hit in get_world_2d().direct_space_state.intersect_shape(q, 16):
 		var c = hit.collider
 		if c:
-			GameState.player_hit(c, SWORD_DAMAGE, center())
+			GameState.player_hit(c, DEMON_BLADE_DAMAGE if demon else SWORD_DAMAGE, center())
 
 
 func in_camp() -> bool:
@@ -219,6 +225,8 @@ func take_damage(amount: int, from: Vector2) -> void:
 	if _invuln > 0.0 or dead:
 		return
 	if in_camp() and amount < 999:
+		return
+	if shield_time > 0.0 and amount < 999:
 		return
 	hp = maxi(hp - amount, 0)
 	_invuln = 1.0
@@ -239,36 +247,50 @@ func _draw() -> void:
 	if _invuln > 0.0 and int(_invuln * 12) % 2 == 0:
 		return
 	Characters.draw(self, look, Vector2.ZERO, 1.0, "stand", facing, _t)
+	if shield_time > 0.0:
+		var a := 0.25 + 0.1 * sin(_t * 10.0)
+		if shield_time < 0.6 and int(shield_time * 15) % 2 == 0:
+			a *= 0.4
+		draw_circle(Vector2(0, -24), 40, Color(0.45, 0.85, 1.0, a))
+		draw_arc(Vector2(0, -24), 40, 0, TAU, 32, Color(0.7, 0.95, 1.0, 0.9), 3.0)
 	if _camp_hint > 0.0:
 		draw_string(ThemeDB.fallback_font, Vector2(-90, -64), "В лагере не сражаются", HORIZONTAL_ALIGNMENT_CENTER, 180, 14, Color(0.2, 0.45, 0.25))
 	# оружие в руке — крупнее, чтобы его было хорошо видно
 	var id := GameState.selected_item_id()
-	if id == "sword":
-		_draw_sword()
+	if id == "sword" or id == "demon_blade":
+		_draw_sword(id == "demon_blade")
 	elif id == "bow":
 		_draw_bow()
 	elif id != "":
 		Items.draw_icon(self, id, Rect2(Vector2(facing * 16 - 15, -34), Vector2(30, 30)))
 
 
-func _draw_sword() -> void:
+func _draw_sword(demon := false) -> void:
 	var hand := Vector2(facing * 10, -24)
+	var blade_len := SWORD_LEN * (1.25 if demon else 1.0)
 	var angle: float
 	if _swing > 0.0:
 		var t := 1.0 - _swing / SWING_TIME
 		angle = lerpf(-1.4, 1.1, t)
 		if facing > 0:
-			draw_arc(hand, SWORD_LEN, -1.4, angle, 16, Color(1, 1, 1, 0.55), 3.0)
+			draw_arc(hand, blade_len, -1.4, angle, 16, Color(1, 1, 1, 0.55) if not demon else Color(0.6, 0.85, 1.0, 0.7), 3.0)
 		else:
-			draw_arc(hand, SWORD_LEN, PI - angle, PI + 1.4, 16, Color(1, 1, 1, 0.55), 3.0)
+			draw_arc(hand, blade_len, PI - angle, PI + 1.4, 16, Color(1, 1, 1, 0.55) if not demon else Color(0.6, 0.85, 1.0, 0.7), 3.0)
 	else:
 		angle = -1.0
 	var d := Vector2(cos(angle) * facing, sin(angle))
 	var guard := hand + d * 10
 	draw_line(hand - d * 6, guard, Color(0.4, 0.26, 0.12), 6.0)  # рукоять
 	draw_line(guard - d.orthogonal() * 9, guard + d.orthogonal() * 9, Color(0.55, 0.45, 0.2), 5.0)  # гарда
-	draw_line(guard, hand + d * SWORD_LEN, Color(0.82, 0.84, 0.9), 7.0)  # клинок
-	draw_line(guard, hand + d * SWORD_LEN, Color(1, 1, 1, 0.6), 2.0)
+	if demon:
+		# демонический клинок: тёмная сталь со светящейся жилой Слезы Луны
+		draw_line(guard, hand + d * blade_len, Color(0.6, 0.85, 1.0, 0.25), 15.0)
+		draw_line(guard, hand + d * blade_len, Color(0.3, 0.04, 0.08), 9.0)
+		draw_line(guard, hand + d * blade_len, Color(0.6, 0.85, 1.0), 2.5)
+		draw_circle(guard, 4, Color(0.6, 0.85, 1.0))
+	else:
+		draw_line(guard, hand + d * SWORD_LEN, Color(0.82, 0.84, 0.9), 7.0)  # клинок
+		draw_line(guard, hand + d * SWORD_LEN, Color(1, 1, 1, 0.6), 2.0)
 
 
 func _draw_bow() -> void:

@@ -2,7 +2,8 @@ extends "res://scripts/level/enemy_base.gd"
 ## Пехотинец: ходит по земле, разворачивается у стен и обрывов,
 ## замечает игрока и бежит к нему. Ранит касанием.
 ## variant: "elf" — эльф-разведчик, "demon" — порождение огня,
-##          "rat" — крыса водостока, "guardian" — каменный страж Оскала.
+##          "rat" — крыса водостока, "guardian" — каменный страж Оскала,
+##          "frost" — ледяной дух Северных льдов.
 
 const GRAVITY := 1500.0
 
@@ -26,6 +27,13 @@ func _ready() -> void:
 			speed = 110.0
 			chase_speed = 210.0
 			touch_damage = 8
+		"frost":
+			size = Vector2(30, 46)
+			max_hp = 60
+			speed = 70.0
+			chase_speed = 150.0
+			touch_damage = 18
+			sight = 320.0
 		"guardian":
 			size = Vector2(38, 54)
 			max_hp = 90
@@ -90,6 +98,13 @@ func _draw() -> void:
 			draw_circle(Vector2(dir * 18, -12), 2.5, Color(1, 0.2, 0.2))
 			draw_line(Vector2(-dir * 15, -6), Vector2(-dir * 30, -14), Color(0.6, 0.45, 0.45), 2.0)
 			draw_circle(Vector2(dir * 8, -19), 5, Color(0.55, 0.45, 0.42))
+		"frost":
+			# ледяной дух: полупрозрачный кристалл с белыми глазами
+			draw_colored_polygon(PackedVector2Array([Vector2(0, -size.y - 6), Vector2(size.x / 2 + 2, -size.y * 0.55),
+				Vector2(size.x / 2 - 4, 0), Vector2(-size.x / 2 + 4, 0), Vector2(-size.x / 2 - 2, -size.y * 0.55)]), body_color(Color(0.65, 0.85, 0.98, 0.85)))
+			draw_line(Vector2(0, -size.y - 6), Vector2(0, -6), Color(1, 1, 1, 0.6), 2.0)
+			draw_rect(Rect2(dir * 6 - 3, -size.y + 12, 6, 5), Color(1, 1, 1))
+			draw_line(Vector2(dir * 12, -20), Vector2(dir * 26, -30), Color(0.85, 0.95, 1.0), 3.0)
 		"guardian":
 			# каменный страж: глыба с рунами
 			draw_rect(r, body_color(Color(0.45, 0.42, 0.4)))

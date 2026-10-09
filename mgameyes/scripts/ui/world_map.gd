@@ -82,6 +82,12 @@ func _draw() -> void:
 	KingdomMap.draw_map(self, off, "", GameState.flag("demons_revealed"), _t)
 	UI.text(self, Vector2(0, 50), "Карта трёх царств", 32, Color(0.25, 0.2, 0.15), HORIZONTAL_ALIGNMENT_CENTER, size.x)
 
+	# вечные льды на севере — вокруг северных локаций
+	for i in order.size():
+		if GameState.get_location(order[i]).get("kingdom", "") == "north":
+			var c := _node_pos(i)
+			draw_circle(c, 85, Color(0.88, 0.95, 1.0, 0.9))
+			draw_circle(c + Vector2(40, -20), 50, Color(0.95, 0.98, 1.0, 0.9))
 	# дороги между локациями
 	for i in order.size():
 		if _hidden(order[i]):

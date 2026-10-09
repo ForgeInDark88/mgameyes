@@ -94,6 +94,16 @@ func add_item(id: String, count := 1) -> bool:
 	return false
 
 
+## Заменить предмет другим в той же ячейке (например, меч → демонический клинок).
+func replace_item(old_id: String, new_id: String) -> void:
+	for i in HOTBAR_SIZE:
+		if inventory[i] and inventory[i].id == old_id:
+			inventory[i] = {"id": new_id, "count": 1}
+			inventory_changed.emit()
+			return
+	add_item(new_id)
+
+
 func has_item(id: String) -> bool:
 	for slot in inventory:
 		if slot and slot.id == id:
@@ -196,6 +206,8 @@ func clear_location(id: String) -> String:
 	var loc := get_location(id)
 	if loc.has("on_clear_flag"):
 		set_flag(loc.on_clear_flag)
+	if loc.has("on_clear_replace"):
+		replace_item(loc.on_clear_replace[0], loc.on_clear_replace[1])
 	if loc.has("on_clear_skill"):
 		grant_skill(loc.on_clear_skill, false)
 	var reward: String = loc.get("reward", "")

@@ -154,6 +154,17 @@ func _draw_backdrop(off: Vector2, scene: String) -> void:
 			for x in range(0, 1280, 120):
 				draw_rect(Rect2(off + Vector2(x + 20, 60), Vector2(24, GROUND_Y - 60)), Color(0.25, 0.2, 0.15))
 				draw_circle(off + Vector2(x + 32, 140), 70, Color(0.25, 0.5, 0.35))
+		"ice":
+			draw_rect(sky, Color(0.6, 0.75, 0.9))
+			draw_rect(ground, Color(0.8, 0.9, 0.97))
+			for x in range(-100, 1400, 260):
+				draw_colored_polygon(PackedVector2Array([off + Vector2(x, GROUND_Y), off + Vector2(x + 120, 160 + fposmod(x * 0.37, 120.0)), off + Vector2(x + 240, GROUND_Y)]), Color(0.85, 0.93, 1.0))
+			var alt := off + Vector2(820, GROUND_Y)
+			draw_rect(Rect2(alt + Vector2(-70, -80), Vector2(140, 80)), Color(0.55, 0.75, 0.9))
+			draw_rect(Rect2(alt + Vector2(-70, -80), Vector2(140, 80)), Color(0.35, 0.5, 0.7), false, 3.0)
+			for i in 50:
+				var p := off + Vector2(fposmod(i * 131.0 + _t * 30.0, 1280.0), fposmod(i * 53.0 + _t * 60.0, GROUND_Y - 60.0) + 60.0)
+				draw_circle(p, 2.5, Color(1, 1, 1, 0.9))
 		"burned":
 			draw_rect(sky, Color(0.45, 0.28, 0.22))
 			draw_rect(ground, Color(0.15, 0.12, 0.11))
@@ -185,6 +196,23 @@ func _draw_fx(off: Vector2, fx: String) -> void:
 			for i in 4:
 				draw_circle(c, 20.0 + i * 18.0 + sin(_t * 4.0 + i) * 6.0, Color(col.r, col.g, col.b, 0.25 - i * 0.05))
 			draw_circle(c, 14, col)
+		"shield":
+			var c := off + Vector2(700, GROUND_Y - 50)
+			draw_circle(c, 80 + sin(_t * 4.0) * 4.0, Color(0.45, 0.85, 1.0, 0.25))
+			draw_arc(c, 80 + sin(_t * 4.0) * 4.0, 0, TAU, 40, Color(0.7, 0.95, 1.0, 0.9), 4.0)
+		"blade":
+			var c := off + Vector2(680, 300)
+			for i in 4:
+				draw_circle(c, 30.0 + i * 22.0 + sin(_t * 5.0 + i) * 6.0, Color(0.6, 0.85, 1.0, 0.18 - i * 0.03))
+			draw_line(c + Vector2(-90, 90), c + Vector2(90, -90), Color(0.3, 0.04, 0.08), 16.0)
+			draw_line(c + Vector2(-90, 90), c + Vector2(90, -90), Color(0.6, 0.85, 1.0), 4.0)
+			draw_line(c + Vector2(-110, 70), c + Vector2(-70, 110), Color(0.15, 0.1, 0.12), 10.0)
+		"possess":
+			var c := off + Vector2(560, GROUND_Y - 60)
+			for i in 6:
+				var r := 60.0 + i * 40.0 + fposmod(_t * 60.0, 40.0)
+				draw_arc(c, r, 0, TAU, 40, Color(0.45, 0.2, 0.9, 0.5 - i * 0.07), 5.0)
+			draw_rect(Rect2(off + Vector2(0, 60), Vector2(1280, 660)), Color(0.1, 0.0, 0.2, 0.25 + 0.1 * sin(_t * 3.0)))
 		"beam":
 			var a := off + Vector2(880, 330)
 			var b := off + Vector2(600, GROUND_Y - 40)

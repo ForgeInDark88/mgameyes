@@ -11,6 +11,14 @@ const DATA := {
 		"hidden": true,
 		"color": Color(0.85, 0.1, 0.15),
 	},
+	"erin_shield": {
+		"name": "Щит рода",
+		"desc": "Купол света на 2.5 с: блокирует любой урон.",
+		"kind": "active",
+		"duration": 2.5,
+		"cooldown": 10.0,
+		"color": Color(0.45, 0.85, 1.0),
+	},
 	"truth_fire": {
 		"name": "Огонь правды",
 		"desc": "Волна белого огня: 30 урона всем на пути.",
@@ -48,6 +56,10 @@ static func draw_icon(ci: CanvasItem, id: String, rect: Rect2, revealed: bool) -
 		"truth_fire":
 			ci.draw_colored_polygon(PackedVector2Array([c + Vector2(-9, 11) * s, c + Vector2(0, -13) * s, c + Vector2(9, 11) * s]), col)
 			ci.draw_colored_polygon(PackedVector2Array([c + Vector2(-4, 11) * s, c + Vector2(0, -2) * s, c + Vector2(4, 11) * s]), Color.WHITE)
+		"erin_shield":
+			ci.draw_colored_polygon(PackedVector2Array([c + Vector2(-11, -12) * s, c + Vector2(11, -12) * s,
+				c + Vector2(11, 2) * s, c + Vector2(0, 13) * s, c + Vector2(-11, 2) * s]), col)
+			ci.draw_line(c + Vector2(0, -10) * s, c + Vector2(0, 9) * s, Color.WHITE, 2 * s)
 		"demon_burn":
 			ci.draw_circle(c, 12 * s, Color(0.1, 0.0, 0.0))
 			ci.draw_arc(c, 12 * s, 0, TAU, 16, col, 3 * s)

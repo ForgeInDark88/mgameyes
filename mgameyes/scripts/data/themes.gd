@@ -15,6 +15,8 @@ const DATA := {
 	"throne": {"sky": [Color(0.75, 0.78, 0.85), Color(0.92, 0.92, 0.95)], "ground": Color(0.65, 0.65, 0.72), "top": Color(0.85, 0.8, 0.55), "platform": Color(0.55, 0.55, 0.62), "deco": "columns"},
 	"fort": {"sky": [Color(0.55, 0.65, 0.8), Color(0.85, 0.85, 0.85)], "ground": Color(0.42, 0.4, 0.38), "top": Color(0.55, 0.52, 0.48), "platform": Color(0.4, 0.28, 0.16), "deco": "fort"},
 	"river": {"sky": [Color(0.5, 0.75, 0.9), Color(0.85, 0.93, 0.95)], "ground": Color(0.35, 0.3, 0.25), "top": Color(0.4, 0.6, 0.3), "platform": Color(0.4, 0.28, 0.16), "deco": "river"},
+	"pass": {"sky": [Color(0.45, 0.5, 0.58), Color(0.75, 0.78, 0.8)], "ground": Color(0.38, 0.36, 0.35), "top": Color(0.55, 0.53, 0.5), "platform": Color(0.32, 0.3, 0.28), "deco": "mountains"},
+	"ice": {"sky": [Color(0.55, 0.7, 0.85), Color(0.9, 0.95, 1.0)], "ground": Color(0.62, 0.75, 0.85), "top": Color(0.97, 0.98, 1.0), "platform": Color(0.55, 0.7, 0.82), "deco": "glaciers"},
 	"ruins": {"sky": [Color(0.12, 0.05, 0.05), Color(0.35, 0.15, 0.1)], "ground": Color(0.3, 0.24, 0.2), "top": Color(0.45, 0.2, 0.12), "platform": Color(0.25, 0.2, 0.18), "deco": "skull"},
 }
 
@@ -107,6 +109,22 @@ static func draw_background(ci: CanvasItem, id: String, w: float, h: float) -> v
 		"river":
 			_hills(ci, w, h, Color(0.5, 0.7, 0.5), rng)
 			ci.draw_rect(Rect2(0, h - 120, w, 60), Color(0.35, 0.6, 0.85, 0.5))
+		"mountains":
+			for x in range(-200, int(w) + 200, 320):
+				var b := Vector2(x + rng.randf_range(0, 100), h - 40)
+				var ph := rng.randf_range(260, 420)
+				ci.draw_colored_polygon(PackedVector2Array([b + Vector2(-220, 0), b + Vector2(0, -ph), b + Vector2(220, 0)]), Color(0.5, 0.5, 0.55, 0.6))
+				ci.draw_colored_polygon(PackedVector2Array([b + Vector2(-50, -ph + 70), b + Vector2(0, -ph), b + Vector2(50, -ph + 70)]), Color(0.95, 0.95, 0.97, 0.7))
+			for i in 25:
+				var p := Vector2(rng.randf_range(0, w), rng.randf_range(0, h * 0.7))
+				ci.draw_line(p, p + Vector2(rng.randf_range(40, 120), 0), Color(1, 1, 1, 0.35), 2.0)
+		"glaciers":
+			for x in range(-200, int(w) + 200, 280):
+				var b := Vector2(x + rng.randf_range(0, 100), h - 40)
+				var ph := rng.randf_range(200, 380)
+				ci.draw_colored_polygon(PackedVector2Array([b + Vector2(-160, 0), b + Vector2(-40, -ph), b + Vector2(60, -ph + 40), b + Vector2(170, 0)]), Color(0.8, 0.9, 1.0, 0.7))
+			for i in 90:
+				ci.draw_circle(Vector2(rng.randf_range(0, w), rng.randf_range(0, h)), rng.randf_range(1.5, 3.0), Color(1, 1, 1, 0.8))
 		"skull":
 			# Древний Оскал: огромная каменная челюсть на фоне
 			for x in range(0, int(w), 900):

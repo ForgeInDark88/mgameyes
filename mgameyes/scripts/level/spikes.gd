@@ -37,8 +37,9 @@ func _draw() -> void:
 		draw_rect(Rect2(0, TILE * 0.3, TILE, TILE * 0.7), col)
 		draw_line(Vector2(0, TILE * 0.3 + sin(_t * 3.0 + position.x) * 2.0), Vector2(TILE, TILE * 0.3 + sin(_t * 3.0 + position.x + 1.0) * 2.0), col.lightened(0.4), 2.0)
 		return
+	var ice: bool = get_parent().get("theme_id") == "ice"
 	for i in 4:
 		var x := i * TILE / 4
 		draw_colored_polygon(PackedVector2Array([
 			Vector2(x, TILE), Vector2(x + TILE / 8, TILE * 0.45), Vector2(x + TILE / 4, TILE)]),
-			Color(0.55, 0.55, 0.6))
+			Color(0.8, 0.92, 1.0) if ice else Color(0.55, 0.55, 0.6))

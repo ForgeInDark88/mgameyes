@@ -14,6 +14,8 @@ var minimap: Control
 var _top: Control
 var _banner: Label
 var _pause_menu: Control
+var _glitch := 0.0
+var _glitch_layer: Control
 
 
 func setup(lvl: Node2D) -> void:
@@ -55,10 +57,35 @@ func setup(lvl: Node2D) -> void:
 	_banner.modulate.a = 0.0
 	root.add_child(_banner)
 
+	_glitch_layer = Control.new()
+	_glitch_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_glitch_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_glitch_layer.draw.connect(_draw_glitch)
+	root.add_child(_glitch_layer)
+	root.move_child(_glitch_layer, 1)
 	_build_pause_menu(root)
 
 	if level.player:
 		level.player.hp_changed.connect(func(_a, _b): _top.queue_redraw())
+
+
+## Помехи на экране: полосы и рябь, когда герой слышит голоса.
+func glitch(seconds: float) -> void:
+	_glitch = seconds
+
+
+func _draw_glitch() -> void:
+	if _glitch <= 0.0:
+		return
+	var sz := _glitch_layer.size
+	var a := clampf(_glitch, 0.0, 1.0)
+	_glitch_layer.draw_rect(Rect2(Vector2.ZERO, sz), Color(0.3, 0.0, 0.05, 0.18 * a))
+	for i in 14:
+		var y := randf() * sz.y
+		_glitch_layer.draw_rect(Rect2(randf_range(-100, sz.x * 0.3), y, randf_range(200, sz.x), randf_range(2, 10)),
+			Color(randf(), randf() * 0.3, randf() * 0.3, 0.25 * a))
+	for i in 120:
+		_glitch_layer.draw_rect(Rect2(randf() * sz.x, randf() * sz.y, 3, 3), Color(1, 1, 1, 0.3 * a))
 
 
 func show_banner(text: String) -> void:
@@ -116,8 +143,12 @@ func _pill(text: String, size: int, align: HorizontalAlignment) -> void:
 	UI.text(_top, Vector2(x, 12 + size + 2), text, size, Color(0.1, 0.1, 0.1), HORIZONTAL_ALIGNMENT_CENTER, w)
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	_top.queue_redraw()
+	if _glitch > 0.0:
+		# помехи идут и во время диалога (пауза), поэтому считаем время сами
+		_glitch = maxf(_glitch - delta, 0.0)
+		_glitch_layer.queue_redraw()
 
 
 func _unhandled_input(event: InputEvent) -> void:
