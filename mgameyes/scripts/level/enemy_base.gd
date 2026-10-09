@@ -34,6 +34,17 @@ func can_see(target: Vector2, from: Vector2) -> bool:
 	return get_world_2d().direct_space_state.intersect_ray(q).is_empty()
 
 
+## Игрок в лагере у точки старта — его не трогаем.
+func player_safe(player: Node2D) -> bool:
+	var lvl := get_parent()
+	return lvl.has_method("is_safe") and lvl.is_safe(player.center())
+
+
+func in_safe_zone(pos: Vector2) -> bool:
+	var lvl := get_parent()
+	return lvl.has_method("is_safe") and lvl.is_safe(pos)
+
+
 func take_damage(amount: int, from: Vector2, blood := false) -> void:
 	if _dying:
 		return
@@ -77,6 +88,8 @@ func draw_hp_bar(y: float, w := 36.0) -> void:
 
 
 func touch_player(player: Node2D, my_rect: Rect2) -> void:
+	if player_safe(player):
+		return
 	var them := Rect2(player.global_position - Vector2(12, 48), Vector2(24, 48))
 	if my_rect.intersects(them):
 		player.take_damage(touch_damage, global_position)

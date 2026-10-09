@@ -20,6 +20,7 @@ const ARROW_DAMAGE := 8
 const POTION_HEAL := 40
 const SWING_TIME := 0.2
 const SWORD_LEN := 58.0
+const AMULET_REGEN := 2.0
 
 var max_hp := 100
 var hp := 100
@@ -33,6 +34,8 @@ var _cooldown := 0.0
 var _knock_x := 0.0
 var _swing := 0.0
 var _swing_dir := 1
+var _camp_hint := 0.0
+var _regen := 0.0
 
 
 func _ready() -> void:
@@ -47,6 +50,8 @@ func _ready() -> void:
 	add_child(cs)
 	max_hp = GameState.max_hp()
 	hp = max_hp
+	# короткая неуязвимость после появления на уровне
+	_invuln = 2.0
 
 
 func refresh_max_hp() -> void:
@@ -63,9 +68,17 @@ func _physics_process(delta: float) -> void:
 	_invuln = maxf(_invuln - delta, 0.0)
 	_cooldown = maxf(_cooldown - delta, 0.0)
 	_swing = maxf(_swing - delta, 0.0)
+	_camp_hint = maxf(_camp_hint - delta, 0.0)
 	queue_redraw()
 	if dead:
 		return
+	if GameState.has_item("amulet") and hp < max_hp:
+		# Амулет Эрин: +2 HP в секунду
+		_regen += AMULET_REGEN * delta
+		if _regen >= 1.0:
+			hp = mini(hp + int(_regen), max_hp)
+			_regen -= int(_regen)
+			hp_changed.emit(hp, max_hp)
 
 	var controls_locked := get_tree().get_first_node_in_group("dialog_open") != null
 	var dir := 0.0 if controls_locked else Input.get_axis("move_left", "move_right")
@@ -106,6 +119,9 @@ func _use_selected_item(just_pressed: bool) -> void:
 	var aim := (get_global_mouse_position() - center()).normalized()
 	if aim == Vector2.ZERO:
 		aim = Vector2(facing, 0)
+	if id in ["sword", "bow", "bomb"] and in_camp():
+		_camp_hint = 1.5
+		return
 	match id:
 		"sword":
 			_sword_attack(aim)
@@ -152,8 +168,15 @@ func _sword_attack(aim: Vector2) -> void:
 			GameState.player_hit(c, SWORD_DAMAGE, center())
 
 
+func in_camp() -> bool:
+	var lvl := get_parent()
+	return lvl.has_method("is_safe") and lvl.is_safe(center())
+
+
 func take_damage(amount: int, from: Vector2) -> void:
 	if _invuln > 0.0 or dead:
+		return
+	if in_camp() and amount < 999:
 		return
 	hp = maxi(hp - amount, 0)
 	_invuln = 1.0
@@ -177,6 +200,8 @@ func _draw() -> void:
 	draw_rect(body, Color(0.05, 0.3, 0.12), false, 2.0)
 	# глаз смотрит в сторону движения
 	draw_rect(Rect2(facing * 5 - 2, -40, 5, 6), Color(0.05, 0.15, 0.08))
+	if _camp_hint > 0.0:
+		draw_string(ThemeDB.fallback_font, Vector2(-90, -64), "В лагере не сражаются", HORIZONTAL_ALIGNMENT_CENTER, 180, 14, Color(0.2, 0.45, 0.25))
 	# оружие в руке — крупнее, чтобы его было хорошо видно
 	var id := GameState.selected_item_id()
 	if id == "sword":

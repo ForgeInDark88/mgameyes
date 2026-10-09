@@ -35,7 +35,7 @@ func _physics_process(delta: float) -> void:
 	var player := get_player()
 	if player and not player.dead:
 		var d: Vector2 = player.global_position - global_position
-		if absf(d.x) < 280.0 and absf(d.y) < 64.0:
+		if absf(d.x) < 280.0 and absf(d.y) < 64.0 and not player_safe(player):
 			dir = 1 if d.x > 0.0 else -1
 			spd = chase_speed
 		touch_player(player, Rect2(global_position - Vector2(SIZE.x / 2, SIZE.y), SIZE))
@@ -48,6 +48,10 @@ func _physics_process(delta: float) -> void:
 		if not test_move(ahead, Vector2(0, 8)):
 			dir = -dir
 			velocity.x = dir * spd
+	# в лагерь у точки старта враги не заходят
+	if in_safe_zone(global_position + Vector2(dir * (SIZE.x / 2 + 6), -SIZE.y / 2)):
+		dir = -dir
+		velocity.x = dir * spd
 	move_and_slide()
 	if is_on_wall():
 		dir = -dir

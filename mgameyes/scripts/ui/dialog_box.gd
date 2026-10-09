@@ -16,6 +16,8 @@ var _lines: Array = []
 var _index := 0
 var _shown := 0.0
 var _choice := 0
+## true — пока открыт диалог, игра стоит на паузе (враги не атакуют)
+var pause_tree := false
 
 
 func _ready() -> void:
@@ -40,6 +42,8 @@ func show_lines(lines: Array) -> void:
 	_lines = lines
 	_index = -1
 	visible = true
+	if pause_tree:
+		get_tree().paused = true
 	add_to_group("dialog_open")
 	_next()
 
@@ -77,6 +81,8 @@ func _next() -> void:
 
 func _close() -> void:
 	visible = false
+	if pause_tree and is_inside_tree():
+		get_tree().paused = false
 	finished.emit()
 	if not is_inside_tree():
 		return

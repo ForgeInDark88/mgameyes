@@ -40,6 +40,7 @@ func setup(lvl: Node2D) -> void:
 	hotbar.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM, Control.PRESET_MODE_KEEP_SIZE, 16)
 
 	dialog = DialogScript.new()
+	dialog.pause_tree = true
 	root.add_child(dialog)
 	dialog.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM, Control.PRESET_MODE_KEEP_SIZE, 130)
 
@@ -100,7 +101,7 @@ func _process(_delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed("pause"):
+	if event.is_action_pressed("pause") and not dialog.is_open():
 		toggle_pause()
 		get_viewport().set_input_as_handled()
 

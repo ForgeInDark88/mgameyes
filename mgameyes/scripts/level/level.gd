@@ -8,6 +8,7 @@ const WalkerScript := preload("res://scripts/level/enemy_walker.gd")
 const ArcherScript := preload("res://scripts/level/enemy_archer.gd")
 const BossScript := preload("res://scripts/level/enemy_boss.gd")
 const NpcScript := preload("res://scripts/level/npc.gd")
+const CampScript := preload("res://scripts/level/camp.gd")
 const BlockScript := preload("res://scripts/level/breakable_block.gd")
 const PickupScript := preload("res://scripts/level/pickup.gd")
 const SpikesScript := preload("res://scripts/level/spikes.gd")
@@ -28,6 +29,9 @@ var exit_portal: Area2D
 var enemies_alive := 0
 var is_cleared := false
 var goal := "enemies"
+## Лагерь вокруг точки старта: враги туда не заходят и не стреляют,
+## а герой не может атаковать изнутри.
+var safe_rect := Rect2()
 var _npc_count := 0
 
 var _terrain_rects: Array = []  # [Rect2, Color]
@@ -146,6 +150,11 @@ func _spawn_entity(ch: String, x: int, y: int) -> void:
 		"P":
 			player = PlayerScript.new()
 			player.position = feet
+			safe_rect = Rect2(feet.x - 5.5 * TILE, feet.y - 7 * TILE, 11 * TILE, 7 * TILE)
+			safe_rect = safe_rect.intersection(Rect2(TILE, TILE, (map_size.x - 2) * TILE, (map_size.y - 1) * TILE))
+			var camp := CampScript.new()
+			camp.position = feet + Vector2(TILE * 1.5, 0)
+			add_child(camp)
 			player.died.connect(_on_player_died)
 			add_child(player)
 			_setup_camera()
@@ -167,7 +176,12 @@ func _spawn_entity(ch: String, x: int, y: int) -> void:
 			var n := NpcScript.new()
 			var all_lines: Array = location.get("npc", [])
 			if _npc_count < all_lines.size():
-				n.lines = all_lines[_npc_count]
+				var entry = all_lines[_npc_count]
+				if entry is Dictionary:
+					n.look = entry.get("look", "smith")
+					n.lines = entry.lines
+				else:
+					n.lines = entry
 			_npc_count += 1
 			n.position = feet
 			add_child(n)
@@ -190,6 +204,15 @@ func _spawn_entity(ch: String, x: int, y: int) -> void:
 			exit_portal.position = feet
 			exit_portal.entered.connect(_on_exit_entered)
 			add_child(exit_portal)
+
+
+func is_safe(pos: Vector2) -> bool:
+	return safe_rect.has_point(pos)
+
+
+## Добавить врага прямо во время боя (например, босс призывает подмогу).
+func spawn_enemy(e: CharacterBody2D, pos: Vector2) -> void:
+	_add_enemy.call_deferred(e, pos)
 
 
 func _add_enemy(e: CharacterBody2D, pos: Vector2) -> void:
