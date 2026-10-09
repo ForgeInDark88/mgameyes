@@ -13,7 +13,8 @@ config_version=5
 config/name="Зелёный странник"
 config/description="2D сюжетный платформер: зачищай локации, получай предметы, открывай карту мира."
 run/main_scene="res://scenes/main_menu.tscn"
-config/features=PackedStringArray("4.3", "GL Compatibility")
+config/features=PackedStringArray("4.7", "GL Compatibility")
+config/icon="res://icon.svg"
 
 [autoload]
 
