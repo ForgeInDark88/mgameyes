@@ -15,6 +15,11 @@ var _home := Vector2.ZERO
 var _t := 0.0
 var _shoot_cd := 1.0
 var _aim := Vector2.LEFT
+## Летающие: пикирование на героя, чтобы их можно было достать мечом
+var _dive := 0.0
+var _dive_cd := 3.0
+## На какой высоте над землёй висит летающий враг (досягаемо прыжком)
+const HOVER_HEIGHT := 130.0
 
 
 func _ready() -> void:
@@ -33,7 +38,18 @@ func _ready() -> void:
 	add_child(cs)
 	_home = position
 	_t = randf() * TAU
+	_dive_cd = randf_range(2.0, 4.0)
+	if variant == "demon":
+		_lower_home.call_deferred()
 	_shoot_cd = randf_range(0.8, shoot_interval)
+
+
+## Летающий враг не висит выше, чем герой может достать прыжком.
+func _lower_home() -> void:
+	var q := PhysicsRayQueryParameters2D.create(_home, _home + Vector2(0, 2000), 1)
+	var hit := get_world_2d().direct_space_state.intersect_ray(q)
+	if hit and hit.position.y - _home.y > HOVER_HEIGHT:
+		_home.y = hit.position.y - HOVER_HEIGHT
 
 
 func _eye() -> Vector2:
@@ -62,10 +78,22 @@ func _physics_process(delta: float) -> void:
 		move_and_slide()
 		return
 	var target := _home + Vector2(sin(_t * 0.7) * 60.0, sin(_t * 1.6) * 14.0)
-	if sees and dist < 220.0:
-		# держим дистанцию
-		target = position - _aim * 80.0
-	velocity = (target - position) * 2.0 + _knock
+	_dive_cd -= delta
+	if _dive > 0.0:
+		# пикирование: летим прямо на героя, после — возвращаемся
+		_dive -= delta
+		if player and not player.dead:
+			target = player.center() + Vector2(0, -10)
+			touch_player(player, Rect2(global_position - size / 2, size))
+		velocity = (target - position).limit_length(1.0) * 340.0 + _knock
+	else:
+		if sees and _dive_cd <= 0.0 and dist < 420.0:
+			_dive = 1.1
+			_dive_cd = randf_range(3.5, 5.5)
+		elif sees and dist < 120.0:
+			# немного отступаем, но не улетаем из досягаемости
+			target = position - _aim * 40.0
+		velocity = (target - position) * 2.0 + _knock
 	move_and_slide()
 
 
