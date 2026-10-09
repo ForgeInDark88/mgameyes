@@ -19,6 +19,28 @@ const DATA := {
 		"cooldown": 10.0,
 		"color": Color(0.45, 0.85, 1.0),
 	},
+	"blade_vortex": {
+		"name": "Вихрь клинков",
+		"desc": "Серпы кружат вокруг Тижена: 25 урона всем рядом.",
+		"kind": "active",
+		"damage": 25,
+		"cooldown": 5.0,
+		"color": Color(0.35, 1.0, 0.45),
+	},
+	"hunter_dash": {
+		"name": "Рывок охотника",
+		"desc": "Рывок вперёд сквозь врагов: 20 урона, неуязвимость в рывке.",
+		"kind": "active",
+		"damage": 20,
+		"cooldown": 6.0,
+		"color": Color(0.5, 0.95, 0.6),
+	},
+	"hunter_mark": {
+		"name": "Взгляд охотника",
+		"desc": "Урон по порождениям огня +50%.",
+		"kind": "passive",
+		"color": Color(0.35, 0.95, 0.45),
+	},
 	"truth_fire": {
 		"name": "Огонь правды",
 		"desc": "Волна белого огня: 30 урона всем на пути.",
@@ -56,6 +78,17 @@ static func draw_icon(ci: CanvasItem, id: String, rect: Rect2, revealed: bool) -
 		"truth_fire":
 			ci.draw_colored_polygon(PackedVector2Array([c + Vector2(-9, 11) * s, c + Vector2(0, -13) * s, c + Vector2(9, 11) * s]), col)
 			ci.draw_colored_polygon(PackedVector2Array([c + Vector2(-4, 11) * s, c + Vector2(0, -2) * s, c + Vector2(4, 11) * s]), Color.WHITE)
+		"blade_vortex":
+			ci.draw_arc(c, 11 * s, 0, TAU * 0.8, 16, col, 3 * s)
+			ci.draw_circle(c + Vector2(11, 0) * s, 3 * s, col)
+			ci.draw_circle(c + Vector2(-8, -8) * s, 3 * s, col)
+		"hunter_dash":
+			for k in 3:
+				ci.draw_line(c + Vector2(-12, -6 + k * 6) * s, c + Vector2(4, -6 + k * 6) * s, col, 2 * s)
+			ci.draw_colored_polygon(PackedVector2Array([c + Vector2(4, -10) * s, c + Vector2(13, 0) * s, c + Vector2(4, 10) * s]), col)
+		"hunter_mark":
+			ci.draw_rect(Rect2(c + Vector2(-12, -3) * s, Vector2(24, 6) * s), col)
+			ci.draw_circle(c, 4 * s, Color.WHITE)
 		"erin_shield":
 			ci.draw_colored_polygon(PackedVector2Array([c + Vector2(-11, -12) * s, c + Vector2(11, -12) * s,
 				c + Vector2(11, 2) * s, c + Vector2(0, 13) * s, c + Vector2(-11, 2) * s]), col)

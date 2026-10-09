@@ -1,6 +1,8 @@
 extends Area2D
 ## Снаряд: стрела (летит с небольшой гравитацией) или огненный шар демонов.
 
+const Characters := preload("res://scripts/data/characters.gd")
+
 var velocity := Vector2.ZERO
 var damage := 10
 var color := Color.BLACK
@@ -57,6 +59,15 @@ func _physics_process(delta: float) -> void:
 
 
 func _on_body_entered(body: Node) -> void:
+	if kind == "truth" and not from_player:
+		# волна Огня правды, выпущенная врагом (Париус)
+		if body.is_in_group("player"):
+			if not body in _hit:
+				_hit.append(body)
+				body.take_damage(damage, global_position - velocity.normalized() * 20)
+			return
+		queue_free()
+		return
 	if kind == "truth":
 		# волна проходит сквозь врагов, но гаснет о стены
 		if body.is_in_group("enemies"):
@@ -86,11 +97,7 @@ func _draw() -> void:
 		draw_rect(Rect2(-6, -32, 12, 64), Color(1, 1, 0.9, 0.8))
 		return
 	if kind == "glaive":
-		var a := _t * 20.0
-		for k in 2:
-			var d := Vector2.from_angle(a + k * PI)
-			draw_line(-d * 14, d * 14, Color(0.35, 0.25, 0.15), 3.0)
-			draw_arc(d * 14, 9, a + k * PI - 1.4, a + k * PI + 0.4, 6, color, 3.0)
+		Characters.draw_warglaive(self, Vector2.ZERO, _t * 20.0, 1.0, _t)
 		return
 	if kind == "magic":
 		draw_circle(Vector2.ZERO, 9, Color(0.6, 0.8, 1.0, 0.6))

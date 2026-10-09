@@ -199,10 +199,10 @@ func _spawn_entity(ch: String, x: int, y: int) -> void:
 			var a := ArcherScript.new()
 			a.variant = "elf" if ch == "a" else "mage"
 			_add_enemy(a, feet)
-		"L", "Y", "T":
+		"L", "Y", "T", "K", "Q":
 			var d := DuelistScript.new()
-			d.look = {"L": "liael", "Y": "yavalen", "T": "tizhen"}[ch]
-			d.display_name = {"L": "Лиаэль", "Y": "Явален", "T": "Тижен"}[ch]
+			d.look = {"L": "liael", "Y": "yavalen", "T": "tizhen", "K": "parius_demon", "Q": "parius_possessed"}[ch]
+			d.display_name = {"L": "Лиаэль", "Y": "Явален", "T": "Тижен", "K": "Париус", "Q": "Пегрус"}[ch]
 			_add_enemy(d, feet)
 		"Z":
 			_add_enemy(ArchmageScript.new(), feet)

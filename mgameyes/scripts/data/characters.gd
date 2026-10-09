@@ -13,7 +13,7 @@ const LOOKS := {
 	"parius": {"body": Color(0.28, 0.28, 0.32), "line": Color(0.1, 0.1, 0.12), "h": 54, "cape": Color(0.6, 0.08, 0.08), "helmet": Color(0.45, 0.45, 0.5)},
 	"parius_demon": {"body": Color(0.16, 0.12, 0.14), "line": Color(0.05, 0.0, 0.0), "h": 54, "cape": Color(0.35, 0.02, 0.02), "helmet": Color(0.2, 0.15, 0.15), "eyes": Color(1, 0.2, 0.1), "aura": Color(0.8, 0.1, 0.05)},
 	"parius_possessed": {"body": Color(0.08, 0.06, 0.1), "line": Color(0.0, 0.0, 0.0), "h": 58, "cape": Color(0.15, 0.05, 0.25), "helmet": Color(0.12, 0.1, 0.16), "eyes": Color(0.85, 0.95, 1.0), "aura": Color(0.45, 0.2, 0.9)},
-	"tizhen": {"body": Color(0.45, 0.4, 0.55), "line": Color(0.2, 0.18, 0.28), "h": 52, "cape": Color(0.3, 0.55, 0.45), "hair": Color(0.92, 0.92, 0.95)},
+	"tizhen": {"body": Color(0.3, 0.26, 0.36), "line": Color(0.12, 0.1, 0.16), "h": 54, "cape": Color(0.12, 0.3, 0.2), "ears": true, "long_hair": Color(0.1, 0.08, 0.12), "blindfold": Color(0.35, 0.95, 0.45), "glaives": true},
 	"dis": {"body": Color(0.3, 0.45, 0.75), "line": Color(0.12, 0.2, 0.4), "h": 52, "cape": Color(0.85, 0.75, 0.3), "hair": Color(0.85, 0.65, 0.3)},
 	"elf": {"body": Color(0.25, 0.65, 0.65), "line": Color(0.1, 0.3, 0.3), "h": 46, "ears": true},
 	"elf_child": {"body": Color(0.35, 0.75, 0.7), "line": Color(0.1, 0.3, 0.3), "h": 30, "ears": true, "hair": Color(0.95, 0.9, 0.6)},
@@ -32,7 +32,7 @@ static func height(id: String) -> float:
 	return LOOKS.get(id, LOOKS.farmer).h
 
 
-static func draw(ci: CanvasItem, id: String, feet: Vector2, s := 1.0, pose := "stand", facing := 1, t := 0.0) -> void:
+static func draw(ci: CanvasItem, id: String, feet: Vector2, s := 1.0, pose := "stand", facing := 1, t := 0.0, weapons := true) -> void:
 	var L: Dictionary = LOOKS.get(id, LOOKS.farmer)
 	var h: float = L.h
 	var w := 26.0 if h >= 40 else 18.0
@@ -80,11 +80,43 @@ static func draw(ci: CanvasItem, id: String, feet: Vector2, s := 1.0, pose := "s
 	var eye := Color(0.05, 0.05, 0.05)
 	if L.has("eyes"):
 		eye = L.eyes
-	ci.draw_rect(Rect2(feet + Vector2(facing * 6 - 2, -bh + 8) * s, Vector2(5, 5) * s), eye)
+	if L.has("blindfold"):
+		# повязка на глазах, светится зелёным
+		ci.draw_rect(Rect2(feet + Vector2(-w / 2 - 1, -bh + 7) * s, Vector2(w + 2, 6) * s), L.blindfold)
+		ci.draw_line(feet + Vector2(-facing * (w / 2), -bh + 10) * s, feet + Vector2(-facing * (w / 2 + 10), -bh + 16) * s, L.blindfold, 2.0 * s)
+	else:
+		ci.draw_rect(Rect2(feet + Vector2(facing * 6 - 2, -bh + 8) * s, Vector2(5, 5) * s), eye)
 	if L.has("staff"):
 		ci.draw_line(feet + Vector2(facing * (w / 2 + 6), -bh - 14) * s, feet + Vector2(facing * (w / 2 + 6), 0) * s, Color(0.4, 0.28, 0.15), 4.0 * s)
 		if id == "elf_mage":
 			ci.draw_circle(feet + Vector2(facing * (w / 2 + 6), -bh - 18) * s, 7 * s, Color(0.7, 0.85, 1.0))
+	if L.has("glaives") and weapons and pose != "fallen":
+		# два клинка-серпа в руках, лезвиями вверх-вниз
+		draw_warglaive(ci, feet + Vector2(facing * (w / 2 + 4), -bh * 0.45) * s, -PI / 2 + facing * 0.35, s * 0.9, t)
+		draw_warglaive(ci, feet + Vector2(-facing * (w / 2 + 2), -bh * 0.5) * s, -PI / 2 - facing * 0.35, s * 0.9, t)
+
+
+## Двусторонний клинок-серп (как боевые глефы охотника на демонов):
+## рукоять посередине, два изогнутых лезвия на концах, зелёное свечение.
+static func draw_warglaive(ci: CanvasItem, c: Vector2, angle: float, s := 1.0, t := 0.0) -> void:
+	var u := Vector2.from_angle(angle)
+	var v := u.orthogonal()
+	var glow := Color(0.35, 1.0, 0.45, 0.35 + 0.15 * sin(t * 6.0))
+	for side in [1, -1]:
+		var su: Vector2 = u * side
+		var sv: Vector2 = v * side
+		var pts := PackedVector2Array([
+			c + (su * 7 + sv * 3) * s, c + (su * 16 + sv * 11) * s, c + (su * 30 + sv * 10) * s,
+			c + (su * 40 - sv * 2) * s, c + (su * 27 + sv * 1) * s, c + (su * 15 - sv * 3) * s, c + (su * 7 - sv * 3) * s])
+		ci.draw_colored_polygon(pts, Color(0.8, 0.85, 0.9))
+		var outline := pts.duplicate()
+		outline.append(pts[0])
+		ci.draw_polyline(outline, glow, 2.5 * s)
+		# шип на внутренней стороне лезвия
+		ci.draw_colored_polygon(PackedVector2Array([c + (su * 13 - sv * 3) * s, c + (su * 18 - sv * 10) * s, c + (su * 20 - sv * 3) * s]), Color(0.7, 0.75, 0.8))
+	# рукоять с обмоткой
+	ci.draw_line(c - u * 8 * s, c + u * 8 * s, Color(0.25, 0.15, 0.1), 5.0 * s)
+	ci.draw_line(c - u * 3 * s, c + u * 3 * s, Color(0.35, 0.95, 0.45), 2.0 * s)
 
 
 static func _draw_fallen(ci: CanvasItem, L: Dictionary, feet: Vector2, s: float, facing: int) -> void:

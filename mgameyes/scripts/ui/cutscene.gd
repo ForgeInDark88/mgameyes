@@ -154,6 +154,16 @@ func _draw_backdrop(off: Vector2, scene: String) -> void:
 			for x in range(0, 1280, 120):
 				draw_rect(Rect2(off + Vector2(x + 20, 60), Vector2(24, GROUND_Y - 60)), Color(0.25, 0.2, 0.15))
 				draw_circle(off + Vector2(x + 32, 140), 70, Color(0.25, 0.5, 0.35))
+		"pass":
+			draw_rect(sky, Color(0.55, 0.6, 0.68))
+			draw_rect(ground, Color(0.38, 0.36, 0.35))
+			for x in range(-150, 1400, 300):
+				draw_colored_polygon(PackedVector2Array([off + Vector2(x, GROUND_Y), off + Vector2(x + 150, 120 + fposmod(x * 0.41, 100.0)), off + Vector2(x + 300, GROUND_Y)]), Color(0.45, 0.45, 0.5))
+				draw_colored_polygon(PackedVector2Array([off + Vector2(x + 110, 200 + fposmod(x * 0.41, 100.0)), off + Vector2(x + 150, 120 + fposmod(x * 0.41, 100.0)), off + Vector2(x + 190, 200 + fposmod(x * 0.41, 100.0))]), Color(0.95, 0.95, 0.97))
+			for i in 8:
+				var y := 100.0 + i * 40.0
+				var x2 := fposmod(_t * 300.0 + i * 170.0, 1400.0) - 100.0
+				draw_line(off + Vector2(x2, y), off + Vector2(x2 + 90, y), Color(1, 1, 1, 0.4), 2.0)
 		"ice":
 			draw_rect(sky, Color(0.6, 0.75, 0.9))
 			draw_rect(ground, Color(0.8, 0.9, 0.97))
@@ -196,6 +206,13 @@ func _draw_fx(off: Vector2, fx: String) -> void:
 			for i in 4:
 				draw_circle(c, 20.0 + i * 18.0 + sin(_t * 4.0 + i) * 6.0, Color(col.r, col.g, col.b, 0.25 - i * 0.05))
 			draw_circle(c, 14, col)
+		"rocks":
+			var k := clampf(_step_t / MOVE_TIME, 0.0, 1.0)
+			for i in 14:
+				var x := 200.0 + fposmod(i * 67.0, 500.0)
+				var y := lerpf(80.0 + fposmod(i * 29.0, 120.0), GROUND_Y - 10.0, minf(k * (1.0 + i * 0.05), 1.0))
+				draw_rect(Rect2(off + Vector2(x, y), Vector2(18 + i % 3 * 8, 14 + i % 2 * 8)), Color(0.4, 0.38, 0.36))
+			draw_rect(Rect2(off + Vector2(0, 60), Vector2(1280, GROUND_Y - 60)), Color(0.8, 0.78, 0.75, 0.5 * k))
 		"shield":
 			var c := off + Vector2(700, GROUND_Y - 50)
 			draw_circle(c, 80 + sin(_t * 4.0) * 4.0, Color(0.45, 0.85, 1.0, 0.25))
