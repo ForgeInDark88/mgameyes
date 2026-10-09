@@ -3,11 +3,13 @@ extends "res://scripts/level/enemy_base.gd"
 ## а когда здоровья меньше половины — злится и стреляет чаще.
 
 const ProjectileScript := preload("res://scripts/level/projectile.gd")
+const ArcherScript := preload("res://scripts/level/enemy_archer.gd")
 const SIZE := Vector2(64, 84)
 
 var _home := Vector2.ZERO
 var _t := 0.0
 var _shoot_cd := 2.0
+var _summoned := false
 
 
 func _ready() -> void:
@@ -39,6 +41,15 @@ func _physics_process(delta: float) -> void:
 	if player == null or player.dead:
 		return
 	touch_player(player, Rect2(global_position - Vector2(SIZE.x / 2, SIZE.y), SIZE))
+	if enraged() and not _summoned:
+		# вторая фаза: Морвен призывает подмогу
+		_summoned = true
+		for sx in [-1, 1]:
+			var a := ArcherScript.new()
+			a.variant = "demon"
+			get_parent().spawn_enemy(a, global_position + Vector2(sx * 160, -40))
+	if player_safe(player):
+		return
 	_shoot_cd -= delta
 	if _shoot_cd <= 0.0:
 		_shoot_cd = 1.3 if enraged() else 2.2
@@ -68,4 +79,4 @@ func _draw() -> void:
 	# полоска здоровья босса
 	draw_rect(Rect2(-60, -SIZE.y - 46, 120, 8), Color(0.15, 0.15, 0.15))
 	draw_rect(Rect2(-60, -SIZE.y - 46, 120.0 * hp / max_hp, 8), Color(0.9, 0.15, 0.15))
-	draw_string(ThemeDB.fallback_font, Vector2(-60, -SIZE.y - 52), "Страж врат", HORIZONTAL_ALIGNMENT_CENTER, 120, 14, Color(0.2, 0.0, 0.0))
+	draw_string(ThemeDB.fallback_font, Vector2(-60, -SIZE.y - 52), "Морвен", HORIZONTAL_ALIGNMENT_CENTER, 120, 14, Color(0.2, 0.0, 0.0))

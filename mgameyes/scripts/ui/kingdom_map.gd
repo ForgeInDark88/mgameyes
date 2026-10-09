@@ -3,7 +3,7 @@ extends RefCounted
 
 const UI := preload("res://scripts/ui/ui_util.gd")
 
-const HOME_POS := Vector2(640, 650)
+const HOME_POS := Vector2(780, 530)
 
 const KINGDOMS := {
 	"elves": {
@@ -62,7 +62,6 @@ static func draw_map(ci: CanvasItem, off: Vector2, focus: String, demons_reveale
 	var h := off + HOME_POS
 	ci.draw_rect(Rect2(h - Vector2(14, 12), Vector2(28, 20)), Color(0.6, 0.4, 0.25))
 	ci.draw_colored_polygon(PackedVector2Array([h + Vector2(-18, -12), h + Vector2(0, -28), h + Vector2(18, -12)]), Color(0.6, 0.15, 0.1))
-	UI.text(ci, h + Vector2(-80, 30), "Отчий дом", 14, Color(0.3, 0.2, 0.1), HORIZONTAL_ALIGNMENT_CENTER, 160)
 
 
 static func _decorations(ci: CanvasItem, off: Vector2, t: float) -> void:

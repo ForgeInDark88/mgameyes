@@ -47,7 +47,7 @@ func _physics_process(delta: float) -> void:
 	if player and not player.dead:
 		var pc: Vector2 = player.center()
 		dist = _eye().distance_to(pc)
-		if dist < SIGHT and can_see(pc, _eye()):
+		if dist < SIGHT and not player_safe(player) and can_see(pc, _eye()):
 			sees = true
 			_aim = (pc - _eye()).normalized()
 		_shoot_cd -= delta

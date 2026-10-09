@@ -29,6 +29,11 @@ const DATA := {
 		"desc": "Пассивно: двойной прыжок.",
 		"kind": "passive",
 	},
+	"amulet": {
+		"name": "Амулет Эрин",
+		"desc": "Пассивно: восстанавливает 2 HP в секунду.",
+		"kind": "passive",
+	},
 	"heart": {
 		"name": "Сердце Разлома",
 		"desc": "Пассивно: +30 к максимальному здоровью.",
@@ -75,6 +80,11 @@ static func draw_icon(ci: CanvasItem, id: String, rect: Rect2) -> void:
 				c + Vector2(18, 8) * s, c + Vector2(18, 18) * s, c + Vector2(-12, 18) * s]), Color(0.55, 0.3, 0.7))
 			ci.draw_line(c + Vector2(-18, -6) * s, c + Vector2(-26, -2) * s, Color(1, 1, 1), 3 * s)
 			ci.draw_line(c + Vector2(-18, 4) * s, c + Vector2(-26, 8) * s, Color(1, 1, 1), 3 * s)
+		"amulet":
+			ci.draw_arc(c + Vector2(0, -8) * s, 14 * s, PI, TAU, 12, Color(0.75, 0.6, 0.2), 2.5 * s)
+			ci.draw_circle(c + Vector2(0, 6) * s, 12 * s, Color(0.85, 0.7, 0.25))
+			ci.draw_circle(c + Vector2(0, 6) * s, 7 * s, Color(0.8, 0.1, 0.15))
+			ci.draw_circle(c + Vector2(-2, 4) * s, 2.5 * s, Color(1, 0.6, 0.6))
 		"heart":
 			ci.draw_circle(c + Vector2(-8, -4) * s, 10 * s, Color(0.2, 0.75, 0.35))
 			ci.draw_circle(c + Vector2(8, -4) * s, 10 * s, Color(0.2, 0.75, 0.35))
