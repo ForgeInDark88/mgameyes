@@ -1,8 +1,10 @@
 extends "res://scripts/level/enemy_base.gd"
 ## Стрелок. variant "demon" — летающий красный щит с концепта, стреляет огнём;
-## variant "elf" — эльф-лучник, стоит на ветке/платформе и стреляет стрелами.
+## variant "elf" — эльф-лучник, стоит на ветке/платформе и стреляет стрелами;
+## variant "mage" — эльф-маг, стреляет сферами света.
 
 const ProjectileScript := preload("res://scripts/level/projectile.gd")
+const Characters := preload("res://scripts/data/characters.gd")
 
 const SIGHT := 540.0
 const GRAVITY := 1500.0
@@ -16,13 +18,13 @@ var _aim := Vector2.LEFT
 
 
 func _ready() -> void:
-	max_hp = 20 if variant == "elf" else 30
+	max_hp = {"elf": 20, "mage": 35}.get(variant, 30)
 	super._ready()
 	var cs := CollisionShape2D.new()
 	var shape := RectangleShape2D.new()
-	if variant == "elf":
-		size = Vector2(26, 44)
-		shoot_interval = 1.5
+	if variant == "elf" or variant == "mage":
+		size = Vector2(26, 44) if variant == "elf" else Vector2(28, 52)
+		shoot_interval = 1.5 if variant == "elf" else 2.2
 		cs.position = Vector2(0, -size.y / 2)
 	else:
 		motion_mode = CharacterBody2D.MOTION_MODE_FLOATING
@@ -35,7 +37,7 @@ func _ready() -> void:
 
 
 func _eye() -> Vector2:
-	return global_position + (Vector2(0, -size.y * 0.6) if variant == "elf" else Vector2.ZERO)
+	return global_position + (Vector2.ZERO if variant == "demon" else Vector2(0, -size.y * 0.6))
 
 
 func _physics_process(delta: float) -> void:
@@ -54,7 +56,7 @@ func _physics_process(delta: float) -> void:
 		if sees and _shoot_cd <= 0.0:
 			_shoot()
 
-	if variant == "elf":
+	if variant != "demon":
 		velocity.y = minf(velocity.y + GRAVITY * delta, 900.0)
 		velocity.x = _knock.x
 		move_and_slide()
@@ -74,6 +76,9 @@ func _shoot() -> void:
 		# небольшая поправка вверх на гравитацию стрелы
 		var dir := (_aim + Vector2(0, -0.08)).normalized()
 		p.setup(dir * 520.0, 10, 1 | 2, Color(0.1, 0.35, 0.3))
+	elif variant == "mage":
+		p.kind = "magic"
+		p.setup(_aim * 300.0, 16, 1 | 2, Color(0.6, 0.8, 1.0))
 	else:
 		p.fire = true
 		p.setup(_aim * 380.0, 15, 1 | 2, Color(1, 0.4, 0.1))
@@ -83,6 +88,14 @@ func _shoot() -> void:
 
 func _draw() -> void:
 	var a := _aim.angle()
+	if variant == "mage":
+		draw_blood_glow(30, Vector2(0, -26))
+		var face := 1 if _aim.x >= 0.0 else -1
+		Characters.draw(self, "elf_mage", Vector2.ZERO, 0.95, "stand", face, _t)
+		if _flash > 0.0:
+			draw_rect(Rect2(-size.x / 2, -size.y, size.x, size.y), Color(1, 1, 1, 0.6))
+		draw_hp_bar(-size.y - 26)
+		return
 	if variant == "elf":
 		draw_blood_glow(30, Vector2(0, -22))
 		var r := Rect2(-size.x / 2, -size.y, size.x, size.y)

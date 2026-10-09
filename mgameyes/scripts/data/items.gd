@@ -6,7 +6,7 @@ extends RefCounted
 const DATA := {
 	"sword": {
 		"name": "Меч",
-		"desc": "Ближний бой, 10 урона. Ломает деревянные блоки.",
+		"desc": "Ближний бой, 10 урона. Ломает ящики и решётки.",
 		"kind": "weapon",
 	},
 	"bow": {
@@ -30,7 +30,7 @@ const DATA := {
 		"kind": "passive",
 	},
 	"amulet": {
-		"name": "Амулет Эрин",
+		"name": "Амулет лекаря",
 		"desc": "Пассивно: восстанавливает 2 HP в секунду.",
 		"kind": "passive",
 	},

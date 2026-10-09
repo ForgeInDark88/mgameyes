@@ -82,18 +82,38 @@ func _draw_top() -> void:
 	_top.draw_rect(bar, Color.BLACK, false, 2.0)
 	UI.text(_top, bar.position + Vector2(0, 17), "HP  %d / %d" % [p.hp, p.max_hp], 15, Color.WHITE,
 		HORIZONTAL_ALIGNMENT_CENTER, bar.size.x)
-	# навыки героя (скрытые показываются как «???»)
-	var x := 20.0
+	UI.text(_top, bar.position + Vector2(bar.size.x + 10, 17), GameState.hero().name, 16, Color.WHITE)
+	# навыки героя (скрытые показываются как «???»); у активных — клавиша и перезарядка
+	var y := 48.0
+	var key_i := 0
 	for id in GameState.skills:
+		var sk := Skills.get_skill(id)
 		var revealed := GameState.is_skill_revealed(id)
-		var r := Rect2(x, 48, 32, 32)
+		var r := Rect2(20, y, 34, 34)
+		var label := "%s — %s" % [sk.name, sk.desc] if revealed else "??? — скрытый навык"
+		var tw := UI.font().get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, 14).x
+		_top.draw_rect(Rect2(18, y - 2, 46 + tw + 12, 38), Color(0, 0, 0, 0.45))
 		UI.panel(_top, r, Color(1, 1, 1, 0.9))
 		Skills.draw_icon(_top, id, r, revealed)
-		var label := "%s — %s" % [Skills.get_skill(id).name, Skills.get_skill(id).desc] if revealed else "??? — скрытый навык"
-		UI.text(_top, Vector2(x + 40, 70), label, 15, Color(0.15, 0.15, 0.15))
-		x += 300.0
-	UI.text(_top, Vector2(0, 36), level.goal_text(), 20, Color(0.15, 0.15, 0.15), HORIZONTAL_ALIGNMENT_RIGHT, _top.size.x - 20)
-	UI.text(_top, Vector2(0, 36), level.location.name, 24, Color(0.1, 0.1, 0.1), HORIZONTAL_ALIGNMENT_CENTER, _top.size.x)
+		if Skills.is_active(id):
+			var cd: float = p.cooldowns.get(id, 0.0)
+			if cd > 0.0:
+				var k: float = cd / sk.cooldown
+				_top.draw_rect(Rect2(r.position + Vector2(0, r.size.y * (1.0 - k)), Vector2(r.size.x, r.size.y * k)), Color(0, 0, 0, 0.6))
+				UI.text(_top, r.position + Vector2(0, 23), "%d" % ceili(cd), 16, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER, r.size.x)
+			UI.text(_top, r.position + Vector2(-2, 12), Skills.KEYS[key_i] if key_i < Skills.KEYS.size() else "", 12, Color(0.9, 0.5, 0.0))
+			key_i += 1
+		UI.text(_top, Vector2(62, y + 22), label, 14, Color.WHITE)
+		y += 42.0
+	_pill(level.goal_text(), 20, HORIZONTAL_ALIGNMENT_RIGHT)
+	_pill(level.location.name, 24, HORIZONTAL_ALIGNMENT_CENTER)
+
+
+func _pill(text: String, size: int, align: HorizontalAlignment) -> void:
+	var w := UI.font().get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x + 24
+	var x := (_top.size.x - w) / 2.0 if align == HORIZONTAL_ALIGNMENT_CENTER else _top.size.x - w - 10
+	_top.draw_rect(Rect2(x, 12, w, size + 14), Color(1, 1, 1, 0.75))
+	UI.text(_top, Vector2(x, 12 + size + 2), text, size, Color(0.1, 0.1, 0.1), HORIZONTAL_ALIGNMENT_CENTER, w)
 
 
 func _process(_delta: float) -> void:

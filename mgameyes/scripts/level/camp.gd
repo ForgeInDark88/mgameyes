@@ -26,4 +26,5 @@ func _draw() -> void:
 	var f := 1.0 + sin(_t * 12.0) * 0.15
 	draw_colored_polygon(PackedVector2Array([Vector2(-9, -4), Vector2(0, -26 * f), Vector2(9, -4)]), Color(1, 0.5, 0.1))
 	draw_colored_polygon(PackedVector2Array([Vector2(-5, -4), Vector2(0, -16 * f), Vector2(5, -4)]), Color(1, 0.9, 0.4))
+	draw_rect(Rect2(-80, -88, 160, 24), Color(1, 1, 1, 0.75))
 	draw_string(ThemeDB.fallback_font, Vector2(-100, -70), "Лагерь — безопасно", HORIZONTAL_ALIGNMENT_CENTER, 200, 14, Color(0.2, 0.45, 0.25))

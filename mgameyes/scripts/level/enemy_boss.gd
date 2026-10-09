@@ -1,10 +1,10 @@
 extends "res://scripts/level/enemy_base.gd"
-## Страж Пепельных врат — босс. Парит над ареной, стреляет веером огненных шаров,
-## а когда здоровья меньше половины — злится и стреляет чаще.
+## Страж Оскала — босс: парящий каменный череп. Стреляет веером проклятых искр,
+## а на половине здоровья злится, стреляет чаще и пробуждает двух каменных стражей.
 
 const ProjectileScript := preload("res://scripts/level/projectile.gd")
-const ArcherScript := preload("res://scripts/level/enemy_archer.gd")
-const SIZE := Vector2(64, 84)
+const WalkerScript := preload("res://scripts/level/enemy_walker.gd")
+const SIZE := Vector2(80, 80)
 
 var _home := Vector2.ZERO
 var _t := 0.0
@@ -13,8 +13,8 @@ var _summoned := false
 
 
 func _ready() -> void:
-	variant = "demon"
-	max_hp = 400
+	variant = "guardian"
+	max_hp = 450
 	touch_damage = 25
 	super._ready()
 	motion_mode = CharacterBody2D.MOTION_MODE_FLOATING
@@ -24,30 +24,29 @@ func _ready() -> void:
 	cs.shape = shape
 	cs.position = Vector2(0, -SIZE.y / 2)
 	add_child(cs)
-	_home = position
+	_home = position - Vector2(0, 150)
 
 
 func enraged() -> bool:
-	return hp < max_hp / 2
+	return hp * 2 < max_hp
 
 
 func _physics_process(delta: float) -> void:
 	tick_effects(delta)
 	_t += delta
-	var target := _home + Vector2(sin(_t * 0.5) * 380.0, sin(_t * 1.3) * 30.0)
-	velocity = (target - position) * 1.5 + _knock * 0.3
+	var target := _home + Vector2(sin(_t * 0.5) * 360.0, sin(_t * 1.3) * 30.0)
+	velocity = (target - position) * 1.5 + _knock * 0.2
 	move_and_slide()
 	var player := get_player()
 	if player == null or player.dead:
 		return
 	touch_player(player, Rect2(global_position - Vector2(SIZE.x / 2, SIZE.y), SIZE))
 	if enraged() and not _summoned:
-		# вторая фаза: Морвен призывает подмогу
 		_summoned = true
 		for sx in [-1, 1]:
-			var a := ArcherScript.new()
-			a.variant = "demon"
-			get_parent().spawn_enemy(a, global_position + Vector2(sx * 160, -40))
+			var g := WalkerScript.new()
+			g.variant = "guardian"
+			get_parent().spawn_enemy(g, _home + Vector2(sx * 220, 150))
 	if player_safe(player):
 		return
 	_shoot_cd -= delta
@@ -61,22 +60,21 @@ func _physics_process(delta: float) -> void:
 			p.fire = true
 			var ang := aim.angle() + (i - (count - 1) / 2.0) * 0.25
 			p.setup(Vector2.from_angle(ang) * 340.0, 15, 1 | 2, Color(1, 0.4, 0.1))
-			p.global_position = center + aim * 40.0
+			p.global_position = center + aim * 46.0
 			get_parent().add_child(p)
 
 
 func _draw() -> void:
-	draw_blood_glow(70, Vector2(0, -SIZE.y / 2))
-	var r := Rect2(-SIZE.x / 2, -SIZE.y, SIZE.x, SIZE.y)
-	var base := Color(0.65, 0.05, 0.08) if not enraged() else Color(0.85, 0.15, 0.05)
-	draw_rect(r, body_color(base))
-	draw_rect(r, Color(0.2, 0.0, 0.0), false, 3.0)
+	var c := Vector2(0, -SIZE.y / 2)
+	var stone := body_color(Color(0.5, 0.46, 0.42) if not enraged() else Color(0.55, 0.38, 0.32))
+	draw_circle(c, 40, stone)
+	draw_rect(Rect2(c + Vector2(-26, 18), Vector2(52, 22)), stone)
 	for sx in [-1, 1]:
-		draw_colored_polygon(PackedVector2Array([
-			Vector2(sx * 14, -SIZE.y), Vector2(sx * 34, -SIZE.y - 30), Vector2(sx * 26, -SIZE.y)]), Color(0.15, 0.1, 0.08))
-		draw_rect(Rect2(sx * 14 - 6, -SIZE.y + 18, 12, 8), Color(1, 0.85, 0.2))
-	draw_rect(Rect2(-16, -SIZE.y + 44, 32, 6), Color(0.1, 0.0, 0.0))
-	# полоска здоровья босса
-	draw_rect(Rect2(-60, -SIZE.y - 46, 120, 8), Color(0.15, 0.15, 0.15))
-	draw_rect(Rect2(-60, -SIZE.y - 46, 120.0 * hp / max_hp, 8), Color(0.9, 0.15, 0.15))
-	draw_string(ThemeDB.fallback_font, Vector2(-60, -SIZE.y - 52), "Морвен", HORIZONTAL_ALIGNMENT_CENTER, 120, 14, Color(0.2, 0.0, 0.0))
+		draw_circle(c + Vector2(sx * 15, -6), 11, Color(0.08, 0.03, 0.02))
+		draw_circle(c + Vector2(sx * 15, -6), 5 + sin(_t * 5.0) * 1.5, Color(1, 0.3, 0.1))
+	for k in 5:
+		draw_rect(Rect2(c + Vector2(-22 + k * 10, 26), Vector2(7, 12)), Color(0.85, 0.8, 0.7))
+	draw_line(c + Vector2(-30, -20), c + Vector2(-10, -36), Color(1, 0.4, 0.1, 0.7), 2.0)
+	draw_rect(Rect2(-60, -SIZE.y - 30, 120, 8), Color(0.15, 0.15, 0.15))
+	draw_rect(Rect2(-60, -SIZE.y - 30, 120.0 * hp / max_hp, 8), Color(0.9, 0.15, 0.15))
+	draw_string(ThemeDB.fallback_font, Vector2(-60, -SIZE.y - 36), "Страж Оскала", HORIZONTAL_ALIGNMENT_CENTER, 120, 14, Color(0.9, 0.8, 0.7))

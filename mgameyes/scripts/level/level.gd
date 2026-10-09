@@ -7,6 +7,8 @@ const PlayerScript := preload("res://scripts/level/player.gd")
 const WalkerScript := preload("res://scripts/level/enemy_walker.gd")
 const ArcherScript := preload("res://scripts/level/enemy_archer.gd")
 const BossScript := preload("res://scripts/level/enemy_boss.gd")
+const DuelistScript := preload("res://scripts/level/enemy_duelist.gd")
+const Themes := preload("res://scripts/data/themes.gd")
 const NpcScript := preload("res://scripts/level/npc.gd")
 const CampScript := preload("res://scripts/level/camp.gd")
 const BlockScript := preload("res://scripts/level/breakable_block.gd")
@@ -16,8 +18,6 @@ const ExitScript := preload("res://scripts/level/exit_portal.gd")
 const HudScript := preload("res://scripts/ui/hud.gd")
 const Skills := preload("res://scripts/data/skills.gd")
 
-const COLOR_GROUND := Color(0.28, 0.27, 0.3)
-const COLOR_PLATFORM := Color(0.08, 0.08, 0.08)
 
 var location_id := ""
 var location: Dictionary
@@ -34,7 +34,9 @@ var goal := "enemies"
 var safe_rect := Rect2()
 var _npc_count := 0
 
-var _terrain_rects: Array = []  # [Rect2, Color]
+var _terrain_rects: Array = []  # [Rect2, платформа?]
+var theme_id := "road"
+var theme: Dictionary
 
 
 func _ready() -> void:
@@ -43,6 +45,8 @@ func _ready() -> void:
 		location_id = GameState.location_order()[0]
 	location = GameState.get_location(location_id)
 	goal = location.get("goal", "enemies")
+	theme_id = location.get("theme", "road")
+	theme = Themes.get_theme(theme_id)
 	_load_grid(location.map)
 	_build()
 	hud = HudScript.new()
@@ -72,7 +76,8 @@ func _check_item_goal() -> void:
 
 func _on_skill_revealed(id: String) -> void:
 	hud.show_banner("Открыт навык: %s" % Skills.get_skill(id).name)
-	hud.dialog.show_lines(GameState.campaign().get("blood_reveal", []))
+	if id == "erin_blood":
+		hud.dialog.show_lines(GameState.campaign().get("blood_reveal", []))
 
 
 func _load_grid(rows: Array) -> void:
@@ -111,6 +116,12 @@ func _build() -> void:
 			_spawn_entity(ch, x, y)
 			x += 1
 
+	var ground: Color = theme.ground
+	var bg := Node2D.new()
+	bg.name = "Background"
+	bg.z_index = -2
+	add_child(bg)
+	bg.draw.connect(func(): Themes.draw_background(bg, theme_id, map_size.x * TILE, map_size.y * TILE))
 	var drawer := Node2D.new()
 	drawer.name = "TerrainDrawer"
 	drawer.z_index = -1
@@ -119,14 +130,22 @@ func _build() -> void:
 		# всё за пределами карты — сплошная земля
 		var w := map_size.x * TILE
 		var h := map_size.y * TILE
-		drawer.draw_rect(Rect2(-2000, h, w + 4000, 2000), COLOR_GROUND)
-		drawer.draw_rect(Rect2(-2000, -2000, 2000, h + 2000), COLOR_GROUND)
-		drawer.draw_rect(Rect2(w, -2000, 2000, h + 2000), COLOR_GROUND)
-		drawer.draw_rect(Rect2(0, -2000, w, 2000), COLOR_GROUND)
+		drawer.draw_rect(Rect2(-2000, h, w + 4000, 2000), ground)
+		drawer.draw_rect(Rect2(-2000, -2000, 2000, h + 2000), ground)
+		drawer.draw_rect(Rect2(w, -2000, 2000, h + 2000), ground)
+		drawer.draw_rect(Rect2(0, -2000, w, 2000), ground)
 		for r in _terrain_rects:
-			drawer.draw_rect(r[0], r[1])
+			drawer.draw_rect(r[0], theme.platform if r[1] else ground)
+			if r[1]:
+				drawer.draw_rect(Rect2(r[0].position + Vector2(0, 8), Vector2(r[0].size.x, 4)), theme.platform.darkened(0.3))
+		# трава / мох / край камня сверху у открытых клеток земли
+		for y in range(1, map_size.y):
+			for x in map_size.x:
+				if grid[y][x] == "#" and grid[y - 1][x] != "#":
+					drawer.draw_rect(Rect2(x * TILE, y * TILE, TILE, 6), theme.top)
 	)
 	move_child(drawer, 0)
+	move_child(bg, 0)
 
 
 func _add_terrain_run(body: StaticBody2D, x: int, length: int, y: int, one_way: bool) -> void:
@@ -140,7 +159,7 @@ func _add_terrain_run(body: StaticBody2D, x: int, length: int, y: int, one_way: 
 	cs.shape = shape
 	cs.position = rect.get_center()
 	body.add_child(cs)
-	_terrain_rects.append([rect, COLOR_PLATFORM if one_way else COLOR_GROUND])
+	_terrain_rects.append([rect, one_way])
 
 
 func _spawn_entity(ch: String, x: int, y: int) -> void:
@@ -158,19 +177,24 @@ func _spawn_entity(ch: String, x: int, y: int) -> void:
 			player.died.connect(_on_player_died)
 			add_child(player)
 			_setup_camera()
-		"e", "W":
+		"e", "W", "r", "G":
 			var w := WalkerScript.new()
-			w.variant = "elf" if ch == "e" else "demon"
+			w.variant = {"e": "elf", "W": "demon", "r": "rat", "G": "guardian"}[ch]
 			_add_enemy(w, feet)
-		"a":
+		"a", "m":
 			var a := ArcherScript.new()
-			a.variant = "elf"
+			a.variant = "elf" if ch == "a" else "mage"
 			_add_enemy(a, feet)
+		"L", "Y":
+			var d := DuelistScript.new()
+			d.look = "liael" if ch == "L" else "yavalen"
+			d.display_name = "Лиаэль" if ch == "L" else "Явален"
+			_add_enemy(d, feet)
 		"A":
 			var a := ArcherScript.new()
 			a.variant = "demon"
 			_add_enemy(a, feet - Vector2(0, TILE / 2.0))
-		"D":
+		"M":
 			_add_enemy(BossScript.new(), feet)
 		"N":
 			var n := NpcScript.new()
@@ -189,10 +213,12 @@ func _spawn_entity(ch: String, x: int, y: int) -> void:
 			_add_pickup("sword", feet)
 		"B":
 			var b := BlockScript.new()
+			b.grate = theme_id in ["sewer", "dungeon"]
 			b.position = Vector2(x * TILE, y * TILE) + Vector2.ONE * TILE / 2.0
 			add_child(b)
-		"^":
+		"^", "~":
 			var s := SpikesScript.new()
+			s.water = ch == "~"
 			s.position = Vector2(x * TILE, y * TILE)
 			add_child(s)
 		"h":
@@ -265,11 +291,19 @@ func _on_location_cleared() -> void:
 		hud.dialog.show_lines(lines)
 	if reward == "heart":
 		player.refresh_max_hp()
+	if location.has("on_clear_skill"):
+		hud.show_banner("Новый навык: %s" % Skills.get_skill(location.on_clear_skill).name)
 
 
 func _on_exit_entered() -> void:
 	if is_cleared:
 		GameState.save_game()
+		# после некоторых локаций идёт катсцена (один раз)
+		var cs: Array = location.get("cutscene_after", [])
+		if not cs.is_empty() and not GameState.flag("cs_" + location_id):
+			GameState.set_flag("cs_" + location_id)
+			GameState.play_cutscene.call_deferred(cs, "world_map")
+			return
 		# менять сцену прямо в физическом колбэке нельзя
 		GameState.go_to_world_map.call_deferred()
 

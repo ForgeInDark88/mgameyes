@@ -70,6 +70,13 @@ static func _decorations(ci: CanvasItem, off: Vector2, t: float) -> void:
 		var p := off + Vector2(40 + (i % 6) * 62 + (i / 6 % 2) * 30, 220 + (i / 6) * 90)
 		ci.draw_circle(p, 18, Color(0.3, 0.55, 0.3))
 		ci.draw_circle(p + Vector2(-5, -5), 7, Color(0.45, 0.7, 0.45))
+	# белый город Илларион
+	for i in 5:
+		var b := off + Vector2(70 + i * 55, 640 - (i % 2) * 30)
+		var hgt := 110.0 + (i % 3) * 40.0
+		ci.draw_rect(Rect2(b - Vector2(0, hgt), Vector2(30, hgt)), Color(0.93, 0.93, 1.0, 0.75))
+		ci.draw_colored_polygon(PackedVector2Array([b + Vector2(-5, -hgt), b + Vector2(15, -hgt - 30), b + Vector2(35, -hgt)]), Color(0.6, 0.75, 0.95, 0.85))
+	UI.text(ci, off + Vector2(60, 700), "Илларион", 16, Color(0.95, 0.95, 1.0), HORIZONTAL_ALIGNMENT_CENTER, 300)
 	# поля и домики людей
 	for i in 5:
 		var p := off + Vector2(520 + (i % 3) * 90, 250 + (i / 3) * 140)
