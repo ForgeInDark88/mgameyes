@@ -9,6 +9,11 @@ const DATA := {
 		"desc": "Ближний бой, 10 урона. Ломает ящики и решётки.",
 		"kind": "weapon",
 	},
+	"warglaives": {
+		"name": "Лунные серпы",
+		"desc": "Парные клинки стражей: 14 урона спереди и сзади.",
+		"kind": "weapon",
+	},
 	"demon_blade": {
 		"name": "Демонический клинок",
 		"desc": "Слеза Луны в стали: 20 урона, длинный взмах.",
@@ -47,6 +52,9 @@ const DATA := {
 }
 
 
+const Characters := preload("res://scripts/data/characters.gd")
+
+
 static func get_item(id: String) -> Dictionary:
 	return DATA.get(id, {"name": id, "desc": "", "kind": "passive"})
 
@@ -64,6 +72,8 @@ static func draw_icon(ci: CanvasItem, id: String, rect: Rect2) -> void:
 			ci.draw_line(c + Vector2(-16, 16) * s, c + Vector2(18, -18) * s, Color(0.8, 0.82, 0.88), 6 * s)
 			ci.draw_line(c + Vector2(-18, 4) * s, c + Vector2(-4, 18) * s, Color(0.45, 0.3, 0.15), 5 * s)
 			ci.draw_line(c + Vector2(-16, 16) * s, c + Vector2(-22, 22) * s, Color(0.45, 0.3, 0.15), 5 * s)
+		"warglaives":
+			Characters.draw_warglaive(ci, c, -PI / 4, s * 0.85)
 		"demon_blade":
 			ci.draw_line(c + Vector2(-16, 16) * s, c + Vector2(20, -20) * s, Color(0.35, 0.05, 0.1), 7 * s)
 			ci.draw_line(c + Vector2(-14, 14) * s, c + Vector2(18, -18) * s, Color(0.6, 0.85, 1.0), 2 * s)

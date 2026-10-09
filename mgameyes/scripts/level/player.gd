@@ -20,6 +20,7 @@ const COYOTE_TIME := 0.1
 
 const SWORD_DAMAGE := 10
 const DEMON_BLADE_DAMAGE := 20
+const GLAIVE_DAMAGE := 14
 const ARROW_DAMAGE := 8
 const POTION_HEAL := 40
 const SWING_TIME := 0.2
@@ -45,6 +46,10 @@ var _t := 0.0
 var cooldowns := {}
 ## Сколько ещё держится Щит рода (Явален)
 var shield_time := 0.0
+## Рывок охотника (Тижен)
+var _dash_time := 0.0
+var _dash_hit: Array = []
+var _dash_damage := 20
 
 
 func _ready() -> void:
@@ -82,6 +87,9 @@ func _physics_process(delta: float) -> void:
 	for k in cooldowns:
 		cooldowns[k] = maxf(cooldowns[k] - delta, 0.0)
 	shield_time = maxf(shield_time - delta, 0.0)
+	if _dash_time > 0.0 and not dead:
+		_dash_step(delta)
+		return
 	queue_redraw()
 	if dead:
 		return
@@ -136,13 +144,16 @@ func _use_selected_item(just_pressed: bool) -> void:
 	var aim := (get_global_mouse_position() - center()).normalized()
 	if aim == Vector2.ZERO:
 		aim = Vector2(facing, 0)
-	if id in ["sword", "demon_blade", "bow", "bomb"] and in_camp():
+	if id in ["sword", "demon_blade", "warglaives", "bow", "bomb"] and in_camp():
 		_camp_hint = 1.5
 		return
 	match id:
 		"sword", "demon_blade":
 			_sword_attack(aim, id == "demon_blade")
 			_cooldown = 0.3
+		"warglaives":
+			_glaive_attack(aim)
+			_cooldown = 0.25
 		"bow":
 			facing = 1 if aim.x >= 0.0 else -1
 			_swing = 0.12
@@ -190,6 +201,20 @@ func _use_skill(id: String) -> void:
 			get_parent().add_child(p)
 		"erin_shield":
 			shield_time = sk.duration
+		"blade_vortex":
+			var v := BurstScript.new()
+			v.global_position = center()
+			v.radius = 100.0
+			v.damage = sk.damage
+			v.color = sk.color
+			v.style = "vortex"
+			get_parent().add_child(v)
+		"hunter_dash":
+			var aim2 := get_global_mouse_position() - center()
+			facing = 1 if aim2.x >= 0.0 else -1
+			_dash_time = 0.22
+			_dash_hit = []
+			_dash_damage = sk.damage
 		"demon_burn":
 			var b := BurstScript.new()
 			b.global_position = center()
@@ -197,6 +222,48 @@ func _use_skill(id: String) -> void:
 			b.damage = sk.damage
 			b.color = sk.color
 			get_parent().add_child(b)
+
+
+## Рывок охотника: быстрый бросок вперёд, ранит всех на пути один раз.
+func _dash_step(delta: float) -> void:
+	_dash_time -= delta
+	_invuln = maxf(_invuln, 0.1)
+	velocity = Vector2(facing * 1000.0, 0.0)
+	move_and_slide()
+	var shape := RectangleShape2D.new()
+	shape.size = Vector2(60, 56)
+	var q := PhysicsShapeQueryParameters2D.new()
+	q.shape = shape
+	q.transform = Transform2D(0.0, center())
+	q.collision_mask = 4
+	for hit in get_world_2d().direct_space_state.intersect_shape(q, 16):
+		var c = hit.collider
+		if c and not c in _dash_hit:
+			_dash_hit.append(c)
+			GameState.player_hit(c, _dash_damage, center() - Vector2(facing * 30, 0))
+	if _dash_time <= 0.0:
+		velocity.x = facing * SPEED
+
+
+## Лунные серпы: удар сразу вперёд и назад.
+func _glaive_attack(aim: Vector2) -> void:
+	_swing_dir = 1 if aim.x >= 0.0 else -1
+	facing = _swing_dir
+	_swing = SWING_TIME
+	var hit_set := []
+	for part in [[Vector2(70, 72), 38], [Vector2(44, 72), -24]]:
+		var shape := RectangleShape2D.new()
+		shape.size = part[0]
+		var q := PhysicsShapeQueryParameters2D.new()
+		q.shape = shape
+		q.transform = Transform2D(0.0, center() + Vector2(_swing_dir * part[1], -4))
+		q.collision_mask = 1 | 4
+		q.exclude = [get_rid()]
+		for hit in get_world_2d().direct_space_state.intersect_shape(q, 16):
+			var c = hit.collider
+			if c and not c in hit_set:
+				hit_set.append(c)
+				GameState.player_hit(c, GLAIVE_DAMAGE, center())
 
 
 func _sword_attack(aim: Vector2, demon := false) -> void:
@@ -246,7 +313,11 @@ func _draw() -> void:
 		return
 	if _invuln > 0.0 and int(_invuln * 12) % 2 == 0:
 		return
-	Characters.draw(self, look, Vector2.ZERO, 1.0, "stand", facing, _t)
+	if _dash_time > 0.0:
+		for k in 3:
+			Characters.draw(self, look, Vector2(-facing * (k + 1) * 18, 0), 1.0, "stand", facing, _t, false)
+		draw_rect(Rect2(-facing * 70 - 20, -48, 70, 48), Color(0.35, 1.0, 0.45, 0.25))
+	Characters.draw(self, look, Vector2.ZERO, 1.0, "stand", facing, _t, false)
 	if shield_time > 0.0:
 		var a := 0.25 + 0.1 * sin(_t * 10.0)
 		if shield_time < 0.6 and int(shield_time * 15) % 2 == 0:
@@ -261,6 +332,8 @@ func _draw() -> void:
 		_draw_sword(id == "demon_blade")
 	elif id == "bow":
 		_draw_bow()
+	elif id == "warglaives":
+		_draw_glaives()
 	elif id != "":
 		Items.draw_icon(self, id, Rect2(Vector2(facing * 16 - 15, -34), Vector2(30, 30)))
 
@@ -291,6 +364,19 @@ func _draw_sword(demon := false) -> void:
 	else:
 		draw_line(guard, hand + d * SWORD_LEN, Color(0.82, 0.84, 0.9), 7.0)  # клинок
 		draw_line(guard, hand + d * SWORD_LEN, Color(1, 1, 1, 0.6), 2.0)
+
+
+func _draw_glaives() -> void:
+	var t := 1.0 - _swing / SWING_TIME if _swing > 0.0 else 0.0
+	if _swing > 0.0:
+		# удар: передний серп описывает дугу, задний — бьёт назад
+		var a := lerpf(-1.5, 1.2, t)
+		Characters.draw_warglaive(self, Vector2(facing * 22, -26) + Vector2(cos(a) * facing, sin(a)) * 14, a * facing + (0.0 if facing > 0 else PI), 1.1, _t)
+		Characters.draw_warglaive(self, Vector2(-facing * 18, -24), PI / 2 + facing * (2.0 - t * 2.5), 1.0, _t)
+		draw_arc(Vector2(facing * 10, -26), 52, -1.5 if facing > 0 else PI - 1.2, 1.2 if facing > 0 else PI + 1.5, 14, Color(0.35, 1.0, 0.45, 0.6), 3.0)
+	else:
+		Characters.draw_warglaive(self, Vector2(facing * 16, -24), -PI / 2 + facing * 0.35, 1.0, _t)
+		Characters.draw_warglaive(self, Vector2(-facing * 14, -26), -PI / 2 - facing * 0.35, 1.0, _t)
 
 
 func _draw_bow() -> void:

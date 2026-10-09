@@ -173,6 +173,8 @@ func player_hit(target: Object, base: int, from: Vector2) -> void:
 		# Кровь рода Эрин работает с самого начала — герой просто ещё не знает об этом
 		target.take_damage(base * DEMON_BONUS, from, true)
 		reveal_skill("erin_blood")
+	elif target.is_in_group("demons") and has_skill("hunter_mark"):
+		target.take_damage(int(base * 1.5), from, true)
 	else:
 		target.take_damage(base, from)
 

@@ -3,7 +3,9 @@ extends "res://scripts/level/enemy_base.gd"
 ## прыгает за игроком. Особые приёмы зависят от look:
 ##   "liael"   — веер стрел; после боя остаётся на коленях;
 ##   "yavalen" — рывок и Щит рода (временно не получает урона);
-##   "tizhen"  — две глефы: вихрь вокруг себя и бросок глефы; при малом здоровье сбегает.
+##   "tizhen"  — два клинка-серпа: вихрь вокруг себя и бросок серпа; при малом здоровье сбегает;
+##   "parius_demon" — Демонический клинок, волна Огня правды; на 35% бой обрывается (сюжет);
+##   "parius_possessed" — Пегрус в теле Париуса: веера тьмы и рывки; на 50% уходит в метель.
 
 const ProjectileScript := preload("res://scripts/level/projectile.gd")
 const Characters := preload("res://scripts/data/characters.gd")
@@ -27,9 +29,14 @@ var _fleeing := 0.0
 
 
 func _ready() -> void:
-	max_hp = {"liael": 350, "yavalen": 400, "tizhen": 450}.get(look, 350)
+	max_hp = {"liael": 350, "yavalen": 400, "tizhen": 450, "parius_demon": 500, "parius_possessed": 600}.get(look, 350)
 	touch_damage = 12
-	if look != "tizhen":
+	if look == "parius_demon":
+		# поединок обрывается катсценой: Париус остаётся стоять
+		leave_body = look
+		leave_pose = "stand"
+		leave_name = display_name
+	elif look not in ["tizhen", "parius_possessed"]:
 		leave_body = look
 		leave_pose = "kneel" if look == "liael" else "fallen"
 		leave_name = display_name
@@ -45,7 +52,10 @@ func _ready() -> void:
 func take_damage(amount: int, from: Vector2, blood := false) -> void:
 	if _shield > 0.0 or _fleeing > 0.0:
 		return
-	if look == "tizhen" and hp - amount <= max_hp * 0.12:
+	if look == "parius_demon" and hp - amount <= max_hp * 0.35:
+		super.take_damage(hp, from, blood)
+		return
+	if look in ["tizhen", "parius_possessed"] and hp - amount <= max_hp * (0.12 if look == "tizhen" else 0.5):
 		# Тижен не погибает: на последних силах уходит с поля боя
 		hp = maxi(hp - amount, 1)
 		_fleeing = 1.2
@@ -138,6 +148,29 @@ func _special(player: Node2D) -> void:
 				_dash = 0.3
 			else:
 				_shield = 1.6
+		"parius_demon":
+			_special_cd = 3.5
+			if randf() < 0.5:
+				_dash = 0.3
+			else:
+				var p := ProjectileScript.new()
+				p.kind = "truth"
+				p.setup(Vector2(facing * 560.0, 0), 20, 1 | 2, Color(1.0, 0.85, 0.4))
+				p.global_position = global_position + Vector2(facing * 30, -30)
+				get_parent().add_child(p)
+		"parius_possessed":
+			_special_cd = 2.6
+			if randf() < 0.4:
+				_dash = 0.3
+			else:
+				var eye := global_position + Vector2(0, -40)
+				var aim: Vector2 = (player.center() - eye).normalized()
+				for i in 5:
+					var p := ProjectileScript.new()
+					p.kind = "magic"
+					p.setup(Vector2.from_angle(aim.angle() + (i - 2) * 0.22) * 320.0, 14, 1 | 2, Color(0.6, 0.3, 1.0))
+					p.global_position = eye + aim * 24.0
+					get_parent().add_child(p)
 		"tizhen":
 			_special_cd = 3.2
 			if randf() < 0.5:
@@ -154,7 +187,7 @@ func _special(player: Node2D) -> void:
 func _draw() -> void:
 	if _windup > 0.0:
 		draw_circle(Vector2(0, -SIZE.y / 2), 40, Color(1, 0.9, 0.3, 0.25))
-	Characters.draw(self, look, Vector2.ZERO, 1.2, "stand", facing, _t)
+	Characters.draw(self, look, Vector2.ZERO, 1.2, "stand", facing, _t, false)
 	if _flash > 0.0:
 		draw_rect(Rect2(-SIZE.x / 2, -SIZE.y, SIZE.x, SIZE.y), Color(1, 1, 1, 0.5))
 	if look == "tizhen":
@@ -163,8 +196,14 @@ func _draw() -> void:
 		# меч: поднят при замахе, опущен после удара
 		var hand := Vector2(facing * 12, -30)
 		var ang := -1.3 if _windup > 0.0 else (0.9 if _slash > 0.0 else -0.4)
-		var tip := hand + Vector2(cos(ang) * facing, sin(ang)) * 46
-		draw_line(hand, tip, Color(0.85, 0.88, 0.95), 5.0)
+		var demon := look.begins_with("parius")
+		var tip := hand + Vector2(cos(ang) * facing, sin(ang)) * (60.0 if demon else 46.0)
+		if demon:
+			draw_line(hand, tip, Color(0.6, 0.85, 1.0, 0.3) if look == "parius_demon" else Color(0.6, 0.3, 1.0, 0.35), 13.0)
+			draw_line(hand, tip, Color(0.3, 0.04, 0.08), 7.0)
+			draw_line(hand, tip, Color(0.6, 0.85, 1.0) if look == "parius_demon" else Color(0.75, 0.55, 1.0), 2.0)
+		else:
+			draw_line(hand, tip, Color(0.85, 0.88, 0.95), 5.0)
 		if _slash > 0.0:
 			draw_arc(hand, 46, -1.3 if facing > 0 else PI - 0.9, 0.9 if facing > 0 else PI + 1.3, 12, Color(1, 1, 1, 0.6), 3.0)
 	if _shield > 0.0:
@@ -177,20 +216,22 @@ func _draw() -> void:
 
 
 func _draw_glaives() -> void:
-	# две глефы: древко и изогнутое лезвие; во время вихря вращаются
+	# два клинка-серпа; во время вихря вращаются вокруг Тижена
 	for side in [-1, 1]:
-		var hand := Vector2(side * 14, -32)
+		var hand := Vector2(side * 16, -32)
 		var ang: float
 		if _spin > 0.0:
-			ang = _t * 18.0 + (PI if side < 0 else 0.0)
+			var a := _t * 16.0 + (PI if side < 0 else 0.0)
+			hand = Vector2(0, -32) + Vector2.from_angle(a) * 34.0
+			ang = a + PI / 2
 		elif _windup > 0.0:
-			ang = -PI / 2 - side * 0.5
+			ang = -PI / 2 - side * 0.3
+			hand += Vector2(0, -10)
 		elif _slash > 0.0:
-			ang = 0.6 if facing > 0 else PI - 0.6
+			ang = 0.2 * facing
+			hand += Vector2(facing * 20, 0)
 		else:
-			ang = -PI / 2 + side * 0.4
-		var d := Vector2.from_angle(ang)
-		draw_line(hand - d * 16, hand + d * 30, Color(0.35, 0.25, 0.15), 4.0)
-		draw_arc(hand + d * 30, 12, ang - 1.4, ang + 0.4, 8, Color(0.85, 0.88, 0.95), 4.0)
+			ang = -PI / 2 + side * 0.35
+		Characters.draw_warglaive(self, hand, ang, 1.15, _t)
 	if _spin > 0.0:
-		draw_arc(Vector2(0, -30), 60, 0, TAU, 24, Color(1, 1, 1, 0.4), 3.0)
+		draw_arc(Vector2(0, -32), 62, 0, TAU, 24, Color(0.35, 1.0, 0.45, 0.45), 3.0)

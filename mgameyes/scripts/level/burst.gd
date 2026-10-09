@@ -4,6 +4,9 @@ extends Node2D
 var radius := 120.0
 var damage := 30
 var color := Color(0.75, 0.05, 0.1)
+## "dark" — Демонический ожог, "vortex" — Вихрь клинков Тижена
+var style := "dark"
+const Characters := preload("res://scripts/data/characters.gd")
 var _t := 0.0
 
 
@@ -28,6 +31,12 @@ func _process(delta: float) -> void:
 
 func _draw() -> void:
 	var k := _t / 0.45
+	if style == "vortex":
+		draw_arc(Vector2.ZERO, radius * 0.85, 0, TAU, 32, Color(color.r, color.g, color.b, 0.6 * (1.0 - k)), 6.0)
+		for i in 3:
+			var a := _t * 18.0 + i * TAU / 3.0
+			Characters.draw_warglaive(self, Vector2.from_angle(a) * radius * 0.6, a + PI / 2, 1.0, _t)
+		return
 	draw_circle(Vector2.ZERO, radius * (0.3 + k * 0.7), Color(0.1, 0.0, 0.0, 0.5 * (1.0 - k)))
 	draw_arc(Vector2.ZERO, radius * (0.3 + k * 0.7), 0, TAU, 32, Color(color.r, color.g, color.b, 1.0 - k), 8.0)
 	for i in 10:
