@@ -8,6 +8,7 @@ signal skill_revealed(id: String)
 
 const Items := preload("res://scripts/data/items.gd")
 const Campaigns := preload("res://scripts/data/campaigns.gd")
+const Skills := preload("res://scripts/data/skills.gd")
 
 const SAVE_PATH := "user://save.json"
 const HOTBAR_SIZE := 9
@@ -21,9 +22,12 @@ var cleared: Array = []
 var flags := {}
 var current_location := ""
 var campaign_id := Campaigns.DEFAULT
-## Врождённые навыки героя и те, о которых он уже знает.
-var skills: Array = ["erin_blood"]
+## Навыки героя и те, о которых он уже знает.
+var skills: Array = []
 var revealed_skills: Array = []
+## Катсцена, которую надо показать, и куда идти после неё.
+var pending_cutscene: Array = []
+var pending_next := "world_map"
 
 
 func _ready() -> void:
@@ -39,14 +43,28 @@ func new_game(campaign := Campaigns.DEFAULT) -> void:
 	cleared = []
 	flags = {}
 	current_location = ""
-	skills = ["erin_blood"]
+	skills = []
 	revealed_skills = []
+	for id in hero().get("skills", []):
+		grant_skill(id, false)
 	for it in campaign().get("start_items", []):
 		add_item(it[0], it[1])
 
 
 func campaign() -> Dictionary:
 	return Campaigns.get_campaign(campaign_id)
+
+
+func hero() -> Dictionary:
+	return campaign().get("hero", {"name": "Герой", "look": "yavalen", "skills": []})
+
+
+## Внешность героя (Париус меняется после артефакта Пегруса).
+func hero_look() -> String:
+	var h := hero()
+	if flag("pegrus") and h.has("demon_look"):
+		return h.demon_look
+	return h.look
 
 
 func get_location(id: String) -> Dictionary:
@@ -117,6 +135,20 @@ func is_skill_revealed(id: String) -> bool:
 	return id in revealed_skills
 
 
+func grant_skill(id: String, announce := true) -> void:
+	if not has_skill(id):
+		skills.append(id)
+	if not Skills.get_skill(id).get("hidden", false):
+		if announce:
+			reveal_skill(id)
+		elif not is_skill_revealed(id):
+			revealed_skills.append(id)
+
+
+func active_skills() -> Array:
+	return skills.filter(func(id): return Skills.is_active(id))
+
+
 func reveal_skill(id: String) -> void:
 	if has_skill(id) and not is_skill_revealed(id):
 		revealed_skills.append(id)
@@ -164,6 +196,8 @@ func clear_location(id: String) -> String:
 	var loc := get_location(id)
 	if loc.has("on_clear_flag"):
 		set_flag(loc.on_clear_flag)
+	if loc.has("on_clear_skill"):
+		grant_skill(loc.on_clear_skill, false)
 	var reward: String = loc.get("reward", "")
 	if reward != "":
 		add_item(reward, loc.get("reward_count", 1))
@@ -185,8 +219,24 @@ func enter_location(id: String) -> void:
 	get_tree().change_scene_to_file("res://scenes/level.tscn")
 
 
+## Начальная катсцена кампании.
 func go_to_cutscene() -> void:
+	play_cutscene(campaign().get("intro", []), "world_map")
+	set_flag("intro_seen")
+
+
+func play_cutscene(steps: Array, next := "world_map") -> void:
+	pending_cutscene = steps
+	pending_next = next
 	get_tree().change_scene_to_file("res://scenes/cutscene.tscn")
+
+
+func go_to(next: String) -> void:
+	match next:
+		"main_menu":
+			go_to_main_menu()
+		_:
+			go_to_world_map()
 
 
 func go_to_world_map() -> void:
@@ -250,6 +300,8 @@ func _setup_input() -> void:
 	_add_mouse("use_item", MOUSE_BUTTON_LEFT)
 	_add_keys("ui_accept", [KEY_E])
 	_add_keys("pause", [KEY_ESCAPE])
+	_add_keys("skill_1", [KEY_Q])
+	_add_keys("skill_2", [KEY_R])
 	for i in HOTBAR_SIZE:
 		_add_keys("slot_%d" % (i + 1), [KEY_1 + i])
 

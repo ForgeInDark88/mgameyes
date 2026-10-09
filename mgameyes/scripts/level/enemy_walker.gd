@@ -1,31 +1,47 @@
 extends "res://scripts/level/enemy_base.gd"
 ## Пехотинец: ходит по земле, разворачивается у стен и обрывов,
 ## замечает игрока и бежит к нему. Ранит касанием.
-## variant "elf" — эльф-разведчик (быстрый, с кинжалом), "demon" — рогатый демон.
+## variant: "elf" — эльф-разведчик, "demon" — порождение огня,
+##          "rat" — крыса водостока, "guardian" — каменный страж Оскала.
 
-const SIZE := Vector2(28, 42)
 const GRAVITY := 1500.0
 
+var size := Vector2(28, 42)
 var speed := 70.0
 var chase_speed := 140.0
+var sight := 280.0
 var dir := -1
 
 
 func _ready() -> void:
-	if variant == "elf":
-		max_hp = 30
-		speed = 90.0
-		chase_speed = 170.0
-		touch_damage = 12
-	else:
-		max_hp = 40
-		touch_damage = 18
+	match variant:
+		"elf":
+			max_hp = 30
+			speed = 90.0
+			chase_speed = 170.0
+			touch_damage = 12
+		"rat":
+			size = Vector2(30, 18)
+			max_hp = 15
+			speed = 110.0
+			chase_speed = 210.0
+			touch_damage = 8
+		"guardian":
+			size = Vector2(38, 54)
+			max_hp = 90
+			speed = 45.0
+			chase_speed = 85.0
+			touch_damage = 22
+			sight = 360.0
+		_:
+			max_hp = 40
+			touch_damage = 18
 	super._ready()
 	var cs := CollisionShape2D.new()
 	var shape := RectangleShape2D.new()
-	shape.size = SIZE
+	shape.size = size
 	cs.shape = shape
-	cs.position = Vector2(0, -SIZE.y / 2)
+	cs.position = Vector2(0, -size.y / 2)
 	add_child(cs)
 
 
@@ -35,21 +51,21 @@ func _physics_process(delta: float) -> void:
 	var player := get_player()
 	if player and not player.dead:
 		var d: Vector2 = player.global_position - global_position
-		if absf(d.x) < 280.0 and absf(d.y) < 64.0 and not player_safe(player):
+		if absf(d.x) < sight and absf(d.y) < 64.0 and not player_safe(player):
 			dir = 1 if d.x > 0.0 else -1
 			spd = chase_speed
-		touch_player(player, Rect2(global_position - Vector2(SIZE.x / 2, SIZE.y), SIZE))
+		touch_player(player, Rect2(global_position - Vector2(size.x / 2, size.y), size))
 
 	velocity.y = minf(velocity.y + GRAVITY * delta, 900.0)
-	velocity.x = dir * spd + _knock.x
+	velocity.x = dir * spd + _knock.x * (0.3 if variant == "guardian" else 1.0)
 	if is_on_floor() and _knock == Vector2.ZERO:
 		# обрыв впереди — разворот
-		var ahead := global_transform.translated(Vector2(dir * (SIZE.x / 2 + 4), 0))
+		var ahead := global_transform.translated(Vector2(dir * (size.x / 2 + 4), 0))
 		if not test_move(ahead, Vector2(0, 8)):
 			dir = -dir
 			velocity.x = dir * spd
 	# в лагерь у точки старта враги не заходят
-	if in_safe_zone(global_position + Vector2(dir * (SIZE.x / 2 + 6), -SIZE.y / 2)):
+	if in_safe_zone(global_position + Vector2(dir * (size.x / 2 + 6), -size.y / 2)):
 		dir = -dir
 		velocity.x = dir * spd
 	move_and_slide()
@@ -58,21 +74,37 @@ func _physics_process(delta: float) -> void:
 
 
 func _draw() -> void:
-	draw_blood_glow(34, Vector2(0, -SIZE.y / 2))
-	var r := Rect2(-SIZE.x / 2, -SIZE.y, SIZE.x, SIZE.y)
-	if variant == "elf":
-		# эльф-разведчик: бирюзовый плащ, острые уши, кинжал
-		draw_rect(r, body_color(Color(0.25, 0.65, 0.65)))
-		draw_rect(r, Color(0.1, 0.3, 0.3), false, 2.0)
-		draw_colored_polygon(PackedVector2Array([Vector2(-dir * 12, -34), Vector2(-dir * 24, -42), Vector2(-dir * 12, -28)]), Color(0.95, 0.85, 0.7))
-		draw_rect(Rect2(dir * 6 - 3, -34, 6, 4), Color(0.1, 0.2, 0.2))
-		draw_line(Vector2(dir * 12, -18), Vector2(dir * 28, -22), Color(0.8, 0.85, 0.9), 3.0)
-	else:
-		# демон: тёмно-красный, рога, жёлтые глаза
-		draw_rect(r, body_color(Color(0.55, 0.08, 0.1)))
-		draw_rect(r, Color(0.25, 0.02, 0.03), false, 2.0)
-		for sx in [-1, 1]:
-			draw_colored_polygon(PackedVector2Array([Vector2(sx * 6, -SIZE.y), Vector2(sx * 14, -SIZE.y - 12), Vector2(sx * 12, -SIZE.y)]), Color(0.2, 0.15, 0.1))
-		draw_rect(Rect2(dir * 6 - 3, -34, 6, 5), Color(1, 0.9, 0.3))
-		draw_line(Vector2(dir * 10, -18), Vector2(dir * 24, -10), Color(0.2, 0.15, 0.1), 4.0)
-	draw_hp_bar(-SIZE.y - 20)
+	draw_blood_glow(34, Vector2(0, -size.y / 2))
+	var r := Rect2(-size.x / 2, -size.y, size.x, size.y)
+	match variant:
+		"elf":
+			# эльф-разведчик: бирюзовый плащ, острые уши, кинжал
+			draw_rect(r, body_color(Color(0.25, 0.65, 0.65)))
+			draw_rect(r, Color(0.1, 0.3, 0.3), false, 2.0)
+			draw_colored_polygon(PackedVector2Array([Vector2(-dir * 12, -34), Vector2(-dir * 24, -42), Vector2(-dir * 12, -28)]), Color(0.95, 0.85, 0.7))
+			draw_rect(Rect2(dir * 6 - 3, -34, 6, 4), Color(0.1, 0.2, 0.2))
+			draw_line(Vector2(dir * 12, -18), Vector2(dir * 28, -22), Color(0.8, 0.85, 0.9), 3.0)
+		"rat":
+			draw_rect(r, body_color(Color(0.4, 0.35, 0.3)))
+			draw_colored_polygon(PackedVector2Array([Vector2(dir * 15, -18), Vector2(dir * 26, -8), Vector2(dir * 15, -2)]), body_color(Color(0.45, 0.38, 0.33)))
+			draw_circle(Vector2(dir * 18, -12), 2.5, Color(1, 0.2, 0.2))
+			draw_line(Vector2(-dir * 15, -6), Vector2(-dir * 30, -14), Color(0.6, 0.45, 0.45), 2.0)
+			draw_circle(Vector2(dir * 8, -19), 5, Color(0.55, 0.45, 0.42))
+		"guardian":
+			# каменный страж: глыба с рунами
+			draw_rect(r, body_color(Color(0.45, 0.42, 0.4)))
+			draw_rect(r, Color(0.2, 0.18, 0.17), false, 3.0)
+			draw_rect(Rect2(-size.x / 2 - 6, -size.y + 14, 8, 22), body_color(Color(0.4, 0.38, 0.36)))
+			draw_rect(Rect2(size.x / 2 - 2, -size.y + 14, 8, 22), body_color(Color(0.4, 0.38, 0.36)))
+			draw_rect(Rect2(dir * 8 - 4, -size.y + 10, 8, 6), Color(1, 0.35, 0.1))
+			draw_line(Vector2(-8, -24), Vector2(4, -14), Color(1, 0.4, 0.1, 0.8), 2.0)
+			draw_line(Vector2(4, -14), Vector2(-4, -6), Color(1, 0.4, 0.1, 0.8), 2.0)
+		_:
+			# порождение огня: тёмно-красное, рога, жёлтые глаза
+			draw_rect(r, body_color(Color(0.55, 0.08, 0.1)))
+			draw_rect(r, Color(0.25, 0.02, 0.03), false, 2.0)
+			for sx in [-1, 1]:
+				draw_colored_polygon(PackedVector2Array([Vector2(sx * 6, -size.y), Vector2(sx * 14, -size.y - 12), Vector2(sx * 12, -size.y)]), Color(0.2, 0.15, 0.1))
+			draw_rect(Rect2(dir * 6 - 3, -34, 6, 5), Color(1, 0.9, 0.3))
+			draw_line(Vector2(dir * 10, -18), Vector2(dir * 24, -10), Color(0.2, 0.15, 0.1), 4.0)
+	draw_hp_bar(-size.y - 20)

@@ -109,14 +109,16 @@ func _draw() -> void:
 		draw_arc(p, NODE_R, 0, TAU, 32, Color.BLACK, 3.0)
 		var mark := "✓" if GameState.is_cleared(id) else ("!" if unlocked else "?")
 		UI.text(self, p + Vector2(-NODE_R, 10), mark, 28, Color.WHITE, HORIZONTAL_ALIGNMENT_CENTER, NODE_R * 2)
-		draw_rect(Rect2(p + Vector2(-95, NODE_R + 6), Vector2(190, 24)), Color(1, 1, 0.95, 0.8))
-		UI.text(self, p + Vector2(-95, NODE_R + 24), loc.name, 16, Color(0.2, 0.15, 0.1), HORIZONTAL_ALIGNMENT_CENTER, 190)
+		var lw := UI.font().get_string_size(loc.name, HORIZONTAL_ALIGNMENT_LEFT, -1, 15).x + 14
+		var lx := clampf(p.x - lw / 2, 4, size.x - lw - 4)
+		draw_rect(Rect2(lx, p.y + NODE_R + 6, lw, 22), Color(1, 1, 0.95, 0.85))
+		UI.text(self, Vector2(lx, p.y + NODE_R + 23), loc.name, 15, Color(0.2, 0.15, 0.1), HORIZONTAL_ALIGNMENT_CENTER, lw)
 
 	# информация о выбранной локации
 	var sel_id: String = order[selected]
 	var sel := GameState.get_location(sel_id)
 	var hidden := _hidden(sel_id)
-	var r := Rect2(Vector2(16, size.y - 136), Vector2(305, 120))
+	var r := Rect2(Vector2(size.x - 321, size.y - 136), Vector2(305, 120))
 	UI.panel(self, r, Color(1, 1, 0.95, 0.95))
 	UI.text(self, r.position + Vector2(14, 28), "???" if hidden else sel.name, 20, Color(0.1, 0.1, 0.1))
 	draw_multiline_string(UI.font(), r.position + Vector2(14, 54), "Скрыто пеленой." if hidden else sel.desc,

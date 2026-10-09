@@ -1,5 +1,5 @@
 extends CharacterBody2D
-## Игрок (Явален) — зелёный прямоугольник с концепта.
+## Игрок. Внешность и навыки берутся из героя текущей кампании (Явален, Париус).
 
 signal hp_changed(hp: int, max_hp: int)
 signal died
@@ -7,6 +7,9 @@ signal died
 const Items := preload("res://scripts/data/items.gd")
 const ProjectileScript := preload("res://scripts/level/projectile.gd")
 const BombScript := preload("res://scripts/level/bomb.gd")
+const BurstScript := preload("res://scripts/level/burst.gd")
+const Characters := preload("res://scripts/data/characters.gd")
+const Skills := preload("res://scripts/data/skills.gd")
 
 const SIZE := Vector2(24, 48)
 const SPEED := 260.0
@@ -36,6 +39,9 @@ var _swing := 0.0
 var _swing_dir := 1
 var _camp_hint := 0.0
 var _regen := 0.0
+var _t := 0.0
+## Перезарядка активных навыков: id -> оставшиеся секунды
+var cooldowns := {}
 
 
 func _ready() -> void:
@@ -69,6 +75,9 @@ func _physics_process(delta: float) -> void:
 	_cooldown = maxf(_cooldown - delta, 0.0)
 	_swing = maxf(_swing - delta, 0.0)
 	_camp_hint = maxf(_camp_hint - delta, 0.0)
+	_t += delta
+	for k in cooldowns:
+		cooldowns[k] = maxf(cooldowns[k] - delta, 0.0)
 	queue_redraw()
 	if dead:
 		return
@@ -105,6 +114,10 @@ func _physics_process(delta: float) -> void:
 				velocity.y = JUMP_VELOCITY * 0.9
 		if Input.is_action_just_released("jump") and velocity.y < 0.0:
 			velocity.y *= 0.5
+		var actives := GameState.active_skills()
+		for i in mini(actives.size(), 2):
+			if Input.is_action_just_pressed("skill_%d" % (i + 1)):
+				_use_skill(actives[i])
 		if Input.is_action_pressed("use_item") and _cooldown <= 0.0:
 			_use_selected_item(Input.is_action_just_pressed("use_item"))
 
@@ -151,6 +164,35 @@ func _use_selected_item(just_pressed: bool) -> void:
 				_cooldown = 0.5
 
 
+func _use_skill(id: String) -> void:
+	if cooldowns.get(id, 0.0) > 0.0:
+		return
+	if in_camp():
+		_camp_hint = 1.5
+		return
+	var sk := Skills.get_skill(id)
+	cooldowns[id] = sk.cooldown
+	match id:
+		"truth_fire":
+			# волна белого огня летит вперёд и ранит всех на пути
+			var aim := (get_global_mouse_position() - center())
+			var dir := 1.0 if aim.x >= 0.0 else -1.0
+			facing = int(dir)
+			var p := ProjectileScript.new()
+			p.setup(Vector2(dir * 620.0, 0), sk.damage, 1 | 4, sk.color)
+			p.from_player = true
+			p.kind = "truth"
+			p.global_position = center() + Vector2(dir * 30, 0)
+			get_parent().add_child(p)
+		"demon_burn":
+			var b := BurstScript.new()
+			b.global_position = center()
+			b.radius = 130.0
+			b.damage = sk.damage
+			b.color = sk.color
+			get_parent().add_child(b)
+
+
 func _sword_attack(aim: Vector2) -> void:
 	_swing_dir = 1 if aim.x >= 0.0 else -1
 	facing = _swing_dir
@@ -190,16 +232,13 @@ func take_damage(amount: int, from: Vector2) -> void:
 
 
 func _draw() -> void:
+	var look := GameState.hero_look()
 	if dead:
-		draw_rect(Rect2(-SIZE.y / 2, -SIZE.x, SIZE.y, SIZE.x), Color(0.13, 0.55, 0.25, 0.6))
+		Characters.draw(self, look, Vector2.ZERO, 1.0, "fallen", facing, _t)
 		return
 	if _invuln > 0.0 and int(_invuln * 12) % 2 == 0:
 		return
-	var body := Rect2(-SIZE.x / 2, -SIZE.y, SIZE.x, SIZE.y)
-	draw_rect(body, Color(0.13, 0.7, 0.3))
-	draw_rect(body, Color(0.05, 0.3, 0.12), false, 2.0)
-	# глаз смотрит в сторону движения
-	draw_rect(Rect2(facing * 5 - 2, -40, 5, 6), Color(0.05, 0.15, 0.08))
+	Characters.draw(self, look, Vector2.ZERO, 1.0, "stand", facing, _t)
 	if _camp_hint > 0.0:
 		draw_string(ThemeDB.fallback_font, Vector2(-90, -64), "В лагере не сражаются", HORIZONTAL_ALIGNMENT_CENTER, 180, 14, Color(0.2, 0.45, 0.25))
 	# оружие в руке — крупнее, чтобы его было хорошо видно

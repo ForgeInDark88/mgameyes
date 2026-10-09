@@ -5,6 +5,7 @@ extends CharacterBody2D
 signal died
 
 const DamageNumber := preload("res://scripts/level/damage_number.gd")
+const RemainsScript := preload("res://scripts/level/remains.gd")
 
 var variant := "demon"
 var max_hp := 30
@@ -14,6 +15,10 @@ var _flash := 0.0
 var _knock := Vector2.ZERO
 var _dying := false
 var _blood_glow := 0.0
+## Если задано — после победы на месте врага остаётся его фигура (боссы-персонажи).
+var leave_body := ""
+var leave_pose := "fallen"
+var leave_name := ""
 
 
 func _ready() -> void:
@@ -60,6 +65,14 @@ func take_damage(amount: int, from: Vector2, blood := false) -> void:
 	get_parent().add_child(n)
 	if hp <= 0:
 		_dying = true
+		if leave_body != "":
+			var body := RemainsScript.new()
+			body.look = leave_body
+			body.pose = leave_pose
+			body.label = leave_name
+			body.facing = 1 if from.x < global_position.x else -1
+			body.position = global_position
+			get_parent().add_child.call_deferred(body)
 		died.emit()
 		queue_free()
 

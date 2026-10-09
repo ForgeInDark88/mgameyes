@@ -6,6 +6,9 @@ var damage := 10
 var color := Color.BLACK
 var from_player := false
 var fire := false
+## "arrow", "fire" (огненный шар), "truth" (волна Огня правды — пробивает врагов), "magic" (сфера мага)
+var kind := "arrow"
+var _hit := []
 var _life := 3.0
 var _t := 0.0
 
@@ -19,8 +22,15 @@ func setup(vel: Vector2, dmg: int, mask: int, col: Color) -> void:
 
 
 func _ready() -> void:
+	if fire and kind == "arrow":
+		kind = "fire"
 	var cs := CollisionShape2D.new()
-	if fire:
+	if kind == "truth":
+		var r := RectangleShape2D.new()
+		r.size = Vector2(40, 64)
+		cs.shape = r
+		_life = 1.2
+	elif fire or kind == "magic":
 		var c := CircleShape2D.new()
 		c.radius = 8
 		cs.shape = c
@@ -30,23 +40,32 @@ func _ready() -> void:
 		cs.shape = shape
 	add_child(cs)
 	body_entered.connect(_on_body_entered)
-	rotation = velocity.angle()
+	rotation = velocity.angle() if kind != "truth" else 0.0
 
 
 func _physics_process(delta: float) -> void:
 	_t += delta
-	if not fire:
+	if kind == "arrow":
 		velocity.y += 200.0 * delta
 	position += velocity * delta
-	rotation = velocity.angle()
+	rotation = velocity.angle() if kind != "truth" else 0.0
 	_life -= delta
 	if _life <= 0.0:
 		queue_free()
-	if fire:
+	if kind != "arrow":
 		queue_redraw()
 
 
 func _on_body_entered(body: Node) -> void:
+	if kind == "truth":
+		# волна проходит сквозь врагов, но гаснет о стены
+		if body.is_in_group("enemies"):
+			if not body in _hit:
+				_hit.append(body)
+				GameState.player_hit(body, damage, global_position - velocity.normalized() * 20)
+			return
+		queue_free()
+		return
 	# стрелы не ломают блоки — для этого есть меч и бомбы
 	if body.has_method("take_damage") and not body.is_in_group("breakable"):
 		var from := global_position - velocity.normalized() * 20
@@ -58,6 +77,18 @@ func _on_body_entered(body: Node) -> void:
 
 
 func _draw() -> void:
+	if kind == "truth":
+		var dir := signf(velocity.x)
+		for i in 5:
+			var y := -28.0 + i * 14.0
+			var len := 26.0 + sin(_t * 30.0 + i) * 8.0
+			draw_colored_polygon(PackedVector2Array([Vector2(-dir * 10, y - 6), Vector2(dir * len, y), Vector2(-dir * 10, y + 6)]), Color(1, 0.85, 0.4, 0.85))
+		draw_rect(Rect2(-6, -32, 12, 64), Color(1, 1, 0.9, 0.8))
+		return
+	if kind == "magic":
+		draw_circle(Vector2.ZERO, 9, Color(0.6, 0.8, 1.0, 0.6))
+		draw_circle(Vector2.ZERO, 5, Color.WHITE)
+		return
 	if fire:
 		var flick := 1.0 + sin(_t * 30.0) * 0.15
 		draw_circle(Vector2(-6, 0), 7 * flick, Color(1, 0.4, 0.05, 0.5))
