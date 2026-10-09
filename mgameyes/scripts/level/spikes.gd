@@ -18,7 +18,7 @@ func _ready() -> void:
 func _physics_process(_delta: float) -> void:
 	for body in get_overlapping_bodies():
 		if body.has_method("take_damage"):
-			body.take_damage(1, body.global_position + Vector2(0, 10))
+			body.take_damage(10, body.global_position + Vector2(0, 10))
 
 
 func _draw() -> void:

@@ -1,16 +1,18 @@
 extends Node
-## Глобальное состояние игры: инвентарь, прогресс по локациям, сохранение.
+## Глобальное состояние игры: кампания, инвентарь, навыки, прогресс, сохранение.
 ## Доступно из любого скрипта как GameState.
 
 signal inventory_changed
 signal selected_changed(slot: int)
+signal skill_revealed(id: String)
 
 const Items := preload("res://scripts/data/items.gd")
-const Locations := preload("res://scripts/data/locations.gd")
+const Campaigns := preload("res://scripts/data/campaigns.gd")
 
 const SAVE_PATH := "user://save.json"
 const HOTBAR_SIZE := 9
-const BASE_MAX_HP := 6
+const BASE_MAX_HP := 100
+const DEMON_BONUS := 2
 
 ## Слоты хотбара: null или {"id": String, "count": int}
 var inventory: Array = []
@@ -18,6 +20,10 @@ var selected_slot := 0
 var cleared: Array = []
 var flags := {}
 var current_location := ""
+var campaign_id := Campaigns.DEFAULT
+## Врождённые навыки героя и те, о которых он уже знает.
+var skills: Array = ["erin_blood"]
+var revealed_skills: Array = []
 
 
 func _ready() -> void:
@@ -25,15 +31,30 @@ func _ready() -> void:
 	new_game()
 
 
-func new_game() -> void:
+func new_game(campaign := Campaigns.DEFAULT) -> void:
+	campaign_id = campaign
 	inventory.clear()
 	inventory.resize(HOTBAR_SIZE)
 	selected_slot = 0
 	cleared = []
 	flags = {}
 	current_location = ""
-	add_item("sword")
-	add_item("potion", 2)
+	skills = ["erin_blood"]
+	revealed_skills = []
+	for it in campaign().get("start_items", []):
+		add_item(it[0], it[1])
+
+
+func campaign() -> Dictionary:
+	return Campaigns.get_campaign(campaign_id)
+
+
+func get_location(id: String) -> Dictionary:
+	return campaign().locations.get(id, {})
+
+
+func location_order() -> Array:
+	return campaign().order
 
 
 # --- Инвентарь -------------------------------------------------------------
@@ -83,7 +104,43 @@ func select_slot(i: int) -> void:
 
 
 func max_hp() -> int:
-	return BASE_MAX_HP + (2 if has_item("heart") else 0)
+	return BASE_MAX_HP + (30 if has_item("heart") else 0)
+
+
+# --- Навыки и урон героя ---------------------------------------------------
+
+func has_skill(id: String) -> bool:
+	return id in skills
+
+
+func is_skill_revealed(id: String) -> bool:
+	return id in revealed_skills
+
+
+func reveal_skill(id: String) -> void:
+	if has_skill(id) and not is_skill_revealed(id):
+		revealed_skills.append(id)
+		skill_revealed.emit(id)
+
+
+## Любой урон от героя проходит здесь, чтобы учитывать навыки.
+func player_hit(target: Object, base: int, from: Vector2) -> void:
+	if target == null or not target.has_method("take_damage"):
+		return
+	if target.is_in_group("demons") and has_skill("erin_blood"):
+		# Кровь рода Эрин работает с самого начала — герой просто ещё не знает об этом
+		target.take_damage(base * DEMON_BONUS, from, true)
+		reveal_skill("erin_blood")
+	else:
+		target.take_damage(base, from)
+
+
+func flag(name: String) -> bool:
+	return bool(flags.get(name, false))
+
+
+func set_flag(name: String, value := true) -> void:
+	flags[name] = value
 
 
 # --- Прогресс --------------------------------------------------------------
@@ -93,7 +150,7 @@ func is_cleared(id: String) -> bool:
 
 
 func is_unlocked(id: String) -> bool:
-	for req in Locations.get_location(id).requires:
+	for req in get_location(id).get("requires", []):
 		if not is_cleared(req):
 			return false
 	return true
@@ -104,14 +161,18 @@ func clear_location(id: String) -> String:
 	if is_cleared(id):
 		return ""
 	cleared.append(id)
-	var loc := Locations.get_location(id)
-	add_item(loc.reward, loc.reward_count)
+	var loc := get_location(id)
+	if loc.has("on_clear_flag"):
+		set_flag(loc.on_clear_flag)
+	var reward: String = loc.get("reward", "")
+	if reward != "":
+		add_item(reward, loc.get("reward_count", 1))
 	save_game()
-	return loc.reward
+	return reward
 
 
 func all_cleared() -> bool:
-	for id in Locations.ORDER:
+	for id in location_order():
 		if not is_cleared(id):
 			return false
 	return true
@@ -122,6 +183,10 @@ func all_cleared() -> bool:
 func enter_location(id: String) -> void:
 	current_location = id
 	get_tree().change_scene_to_file("res://scenes/level.tscn")
+
+
+func go_to_cutscene() -> void:
+	get_tree().change_scene_to_file("res://scenes/cutscene.tscn")
 
 
 func go_to_world_map() -> void:
@@ -139,6 +204,9 @@ func save_game() -> void:
 	if f == null:
 		return
 	f.store_string(JSON.stringify({
+		"campaign": campaign_id,
+		"skills": skills,
+		"revealed_skills": revealed_skills,
 		"inventory": inventory,
 		"selected_slot": selected_slot,
 		"cleared": cleared,
@@ -156,7 +224,9 @@ func load_game() -> bool:
 	var data = JSON.parse_string(FileAccess.get_file_as_string(SAVE_PATH))
 	if typeof(data) != TYPE_DICTIONARY:
 		return false
-	new_game()
+	new_game(str(data.get("campaign", Campaigns.DEFAULT)))
+	skills = data.get("skills", skills)
+	revealed_skills = data.get("revealed_skills", [])
 	var inv: Array = data.get("inventory", [])
 	for i in mini(inv.size(), HOTBAR_SIZE):
 		if inv[i] is Dictionary:

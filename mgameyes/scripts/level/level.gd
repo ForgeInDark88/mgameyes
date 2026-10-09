@@ -1,17 +1,19 @@
 extends Node2D
-## Уровень (локация). Строится из символьной карты в locations.gd.
+## Уровень (локация). Строится из символьной карты в campaigns.gd.
 
 const TILE := 32
-const Locations := preload("res://scripts/data/locations.gd")
 const Items := preload("res://scripts/data/items.gd")
 const PlayerScript := preload("res://scripts/level/player.gd")
 const WalkerScript := preload("res://scripts/level/enemy_walker.gd")
 const ArcherScript := preload("res://scripts/level/enemy_archer.gd")
+const BossScript := preload("res://scripts/level/enemy_boss.gd")
+const NpcScript := preload("res://scripts/level/npc.gd")
 const BlockScript := preload("res://scripts/level/breakable_block.gd")
 const PickupScript := preload("res://scripts/level/pickup.gd")
 const SpikesScript := preload("res://scripts/level/spikes.gd")
 const ExitScript := preload("res://scripts/level/exit_portal.gd")
 const HudScript := preload("res://scripts/ui/hud.gd")
+const Skills := preload("res://scripts/data/skills.gd")
 
 const COLOR_GROUND := Color(0.28, 0.27, 0.3)
 const COLOR_PLATFORM := Color(0.08, 0.08, 0.08)
@@ -25,6 +27,8 @@ var hud: CanvasLayer
 var exit_portal: Area2D
 var enemies_alive := 0
 var is_cleared := false
+var goal := "enemies"
+var _npc_count := 0
 
 var _terrain_rects: Array = []  # [Rect2, Color]
 
@@ -32,14 +36,39 @@ var _terrain_rects: Array = []  # [Rect2, Color]
 func _ready() -> void:
 	location_id = GameState.current_location
 	if location_id == "":
-		location_id = Locations.ORDER[0]
-	location = Locations.get_location(location_id)
+		location_id = GameState.location_order()[0]
+	location = GameState.get_location(location_id)
+	goal = location.get("goal", "enemies")
 	_load_grid(location.map)
 	_build()
 	hud = HudScript.new()
 	add_child(hud)
 	hud.setup(self)
-	hud.dialog.show_lines(location.intro)
+	hud.dialog.show_lines(location.get("intro", []))
+	GameState.skill_revealed.connect(_on_skill_revealed)
+	if goal.begins_with("item:"):
+		GameState.inventory_changed.connect(_check_item_goal)
+		_check_item_goal.call_deferred()
+	elif enemies_alive == 0:
+		_on_location_cleared.call_deferred()
+
+
+func goal_text() -> String:
+	if is_cleared:
+		return "Выход открыт →"
+	if location.has("goal_text"):
+		return location.goal_text
+	return "Врагов осталось: %d" % get_tree().get_nodes_in_group("enemies").size()
+
+
+func _check_item_goal() -> void:
+	if not is_cleared and GameState.has_item(goal.trim_prefix("item:")):
+		_on_location_cleared()
+
+
+func _on_skill_revealed(id: String) -> void:
+	hud.show_banner("Открыт навык: %s" % Skills.get_skill(id).name)
+	hud.dialog.show_lines(GameState.campaign().get("blood_reveal", []))
 
 
 func _load_grid(rows: Array) -> void:
@@ -120,10 +149,30 @@ func _spawn_entity(ch: String, x: int, y: int) -> void:
 			player.died.connect(_on_player_died)
 			add_child(player)
 			_setup_camera()
-		"W":
-			_add_enemy(WalkerScript.new(), feet)
+		"e", "W":
+			var w := WalkerScript.new()
+			w.variant = "elf" if ch == "e" else "demon"
+			_add_enemy(w, feet)
+		"a":
+			var a := ArcherScript.new()
+			a.variant = "elf"
+			_add_enemy(a, feet)
 		"A":
-			_add_enemy(ArcherScript.new(), feet - Vector2(0, TILE / 2.0))
+			var a := ArcherScript.new()
+			a.variant = "demon"
+			_add_enemy(a, feet - Vector2(0, TILE / 2.0))
+		"D":
+			_add_enemy(BossScript.new(), feet)
+		"N":
+			var n := NpcScript.new()
+			var all_lines: Array = location.get("npc", [])
+			if _npc_count < all_lines.size():
+				n.lines = all_lines[_npc_count]
+			_npc_count += 1
+			n.position = feet
+			add_child(n)
+		"s":
+			_add_pickup("sword", feet)
 		"B":
 			var b := BlockScript.new()
 			b.position = Vector2(x * TILE, y * TILE) + Vector2.ONE * TILE / 2.0
@@ -181,14 +230,16 @@ func _on_location_cleared() -> void:
 	if exit_portal:
 		exit_portal.activate()
 	var reward := GameState.clear_location(location_id)
-	var lines: Array = []
+	var lines: Array = location.get("outro", []).duplicate()
 	if reward != "":
-		hud.show_banner("Локация зачищена! Получено: %s" % Items.get_item(reward).name)
-		lines = location.outro.duplicate()
+		hud.show_banner("Локация пройдена! Получено: %s" % Items.get_item(reward).name)
 		lines.append(["Новый предмет", "%s — %s" % [Items.get_item(reward).name, Items.get_item(reward).desc]])
-		hud.dialog.show_lines(lines)
 	else:
-		hud.show_banner("Локация зачищена! Выход открыт.")
+		hud.show_banner("Локация пройдена! Выход открыт.")
+	# реплики показываются только при первом прохождении
+	if reward != "" or not GameState.flag("outro_" + location_id):
+		GameState.set_flag("outro_" + location_id)
+		hud.dialog.show_lines(lines)
 	if reward == "heart":
 		player.refresh_max_hp()
 

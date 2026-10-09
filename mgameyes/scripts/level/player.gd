@@ -1,5 +1,5 @@
 extends CharacterBody2D
-## Игрок — зелёный прямоугольник с концепта.
+## Игрок (Явален) — зелёный прямоугольник с концепта.
 
 signal hp_changed(hp: int, max_hp: int)
 signal died
@@ -15,8 +15,14 @@ const GRAVITY := 1500.0
 const MAX_FALL := 900.0
 const COYOTE_TIME := 0.1
 
-var max_hp := 6
-var hp := 6
+const SWORD_DAMAGE := 10
+const ARROW_DAMAGE := 8
+const POTION_HEAL := 40
+const SWING_TIME := 0.2
+const SWORD_LEN := 58.0
+
+var max_hp := 100
+var hp := 100
 var facing := 1
 var dead := false
 
@@ -105,14 +111,17 @@ func _use_selected_item(just_pressed: bool) -> void:
 			_sword_attack(aim)
 			_cooldown = 0.3
 		"bow":
+			facing = 1 if aim.x >= 0.0 else -1
+			_swing = 0.12
 			var p := ProjectileScript.new()
-			p.setup(aim * 750.0, 1, 1 | 4, Color(0.15, 0.15, 0.15))
-			p.global_position = center() + aim * 20
+			p.setup(aim * 750.0, ARROW_DAMAGE, 1 | 4, Color(0.15, 0.15, 0.15))
+			p.from_player = true
+			p.global_position = center() + aim * 30
 			get_parent().add_child(p)
 			_cooldown = 0.35
 		"potion":
 			if just_pressed and hp < max_hp:
-				hp = mini(hp + 3, max_hp)
+				hp = mini(hp + POTION_HEAL, max_hp)
 				hp_changed.emit(hp, max_hp)
 				GameState.consume_selected()
 				_cooldown = 0.3
@@ -129,18 +138,18 @@ func _use_selected_item(just_pressed: bool) -> void:
 func _sword_attack(aim: Vector2) -> void:
 	_swing_dir = 1 if aim.x >= 0.0 else -1
 	facing = _swing_dir
-	_swing = 0.18
+	_swing = SWING_TIME
 	var shape := RectangleShape2D.new()
-	shape.size = Vector2(48, 56)
+	shape.size = Vector2(64, 72)
 	var q := PhysicsShapeQueryParameters2D.new()
 	q.shape = shape
-	q.transform = Transform2D(0.0, center() + Vector2(_swing_dir * 34, 0))
+	q.transform = Transform2D(0.0, center() + Vector2(_swing_dir * 42, -4))
 	q.collision_mask = 1 | 4
 	q.exclude = [get_rid()]
 	for hit in get_world_2d().direct_space_state.intersect_shape(q, 16):
 		var c = hit.collider
-		if c and c.has_method("take_damage"):
-			c.take_damage(1, center())
+		if c:
+			GameState.player_hit(c, SWORD_DAMAGE, center())
 
 
 func take_damage(amount: int, from: Vector2) -> void:
@@ -168,14 +177,46 @@ func _draw() -> void:
 	draw_rect(body, Color(0.05, 0.3, 0.12), false, 2.0)
 	# глаз смотрит в сторону движения
 	draw_rect(Rect2(facing * 5 - 2, -40, 5, 6), Color(0.05, 0.15, 0.08))
-	# предмет в руке
+	# оружие в руке — крупнее, чтобы его было хорошо видно
 	var id := GameState.selected_item_id()
-	if id != "" and _swing <= 0.0:
-		Items.draw_icon(self, id, Rect2(Vector2(facing * 14 - 10, -30), Vector2(20, 20)))
+	if id == "sword":
+		_draw_sword()
+	elif id == "bow":
+		_draw_bow()
+	elif id != "":
+		Items.draw_icon(self, id, Rect2(Vector2(facing * 16 - 15, -34), Vector2(30, 30)))
+
+
+func _draw_sword() -> void:
+	var hand := Vector2(facing * 10, -24)
+	var angle: float
 	if _swing > 0.0:
-		var t := 1.0 - _swing / 0.18
-		var a := lerpf(-1.2, 1.2, t)
-		var base := Vector2(_swing_dir * 10, -24)
-		var tip := base + Vector2(_swing_dir * cos(a), sin(a)) * 40
-		draw_line(base, tip, Color(0.85, 0.87, 0.92), 5.0)
-		draw_arc(base, 40, -1.2 if _swing_dir > 0 else PI - 1.2, (1.2 if _swing_dir > 0 else PI + 1.2), 12, Color(1, 1, 1, 0.5), 2.0)
+		var t := 1.0 - _swing / SWING_TIME
+		angle = lerpf(-1.4, 1.1, t)
+		if facing > 0:
+			draw_arc(hand, SWORD_LEN, -1.4, angle, 16, Color(1, 1, 1, 0.55), 3.0)
+		else:
+			draw_arc(hand, SWORD_LEN, PI - angle, PI + 1.4, 16, Color(1, 1, 1, 0.55), 3.0)
+	else:
+		angle = -1.0
+	var d := Vector2(cos(angle) * facing, sin(angle))
+	var guard := hand + d * 10
+	draw_line(hand - d * 6, guard, Color(0.4, 0.26, 0.12), 6.0)  # рукоять
+	draw_line(guard - d.orthogonal() * 9, guard + d.orthogonal() * 9, Color(0.55, 0.45, 0.2), 5.0)  # гарда
+	draw_line(guard, hand + d * SWORD_LEN, Color(0.82, 0.84, 0.9), 7.0)  # клинок
+	draw_line(guard, hand + d * SWORD_LEN, Color(1, 1, 1, 0.6), 2.0)
+
+
+func _draw_bow() -> void:
+	var c := Vector2(facing * 16, -26)
+	var aim := (get_global_mouse_position() - center()).normalized()
+	if aim == Vector2.ZERO or signf(aim.x) != facing:
+		aim = Vector2(facing, 0)
+	var a := aim.angle()
+	draw_arc(c, 22, a - 1.3, a + 1.3, 16, Color(0.5, 0.3, 0.12), 5.0)
+	var top := c + Vector2.from_angle(a - 1.3) * 22
+	var bot := c + Vector2.from_angle(a + 1.3) * 22
+	var pull := c - aim * (14.0 if _swing <= 0.0 else 4.0)
+	draw_polyline(PackedVector2Array([top, pull, bot]), Color(0.15, 0.15, 0.15), 1.5)
+	if _swing <= 0.0:
+		draw_line(pull, c + aim * 24, Color(0.15, 0.15, 0.15), 2.5)
