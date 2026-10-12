@@ -1,5 +1,6 @@
 extends Node2D
-## Уровень (локация). Строится из символьной карты в campaigns.gd.
+## Уровень (локация). Строится из символьной карты в campaigns.gd
+## или из сцены, нарисованной в редакторе (levels/<кампания>/<id>.tscn, см. level_scene.gd).
 
 const TILE := 32
 const Items := preload("res://scripts/data/items.gd")
@@ -46,7 +47,7 @@ func _ready() -> void:
 	location_id = GameState.current_location
 	if location_id == "":
 		location_id = GameState.location_order()[0]
-	location = GameState.get_location(location_id)
+	location = load_location(location_id)
 	goal = location.get("goal", "enemies")
 	theme_id = location.get("theme", "road")
 	theme = Themes.get_theme(theme_id)
@@ -63,6 +64,29 @@ func _ready() -> void:
 		_check_item_goal.call_deferred()
 	elif enemies_alive == 0:
 		_on_location_cleared.call_deferred()
+
+
+## Описание локации: из campaigns.gd, а если для неё есть сцена — карта и реплики из сцены.
+static func load_location(id: String) -> Dictionary:
+	var loc := GameState.get_location(id)
+	var path: String = loc.get("scene", "res://levels/%s/%s.tscn" % [GameState.campaign_id, id])
+	if GameState.test_scene != "":
+		path = GameState.test_scene
+		if loc.is_empty():
+			loc = {"name": "Проверка: " + path.get_file().get_basename()}
+	if not ResourceLoader.exists(path):
+		if not loc.has("map"):
+			push_error("У локации %s нет ни \"map\", ни сцены %s" % [id, path])
+			loc = loc.duplicate()
+			loc["map"] = ["#X..P#", "######"]
+		return loc
+	var scene: Node = load(path).instantiate()
+	if scene.has_method("build_location"):
+		loc = scene.build_location(loc)
+	else:
+		push_error("Корень сцены %s должен использовать scripts/level/editor/level_scene.gd" % path)
+	scene.free()
+	return loc
 
 
 func _process(_delta: float) -> void:
@@ -312,6 +336,10 @@ func _on_location_cleared() -> void:
 
 
 func _on_exit_entered() -> void:
+	if is_cleared and GameState.test_scene != "":
+		# проверка уровня из редактора закончена
+		get_tree().quit()
+		return
 	if is_cleared:
 		GameState.save_game()
 		# после некоторых локаций идёт катсцена (один раз)

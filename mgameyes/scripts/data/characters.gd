@@ -1,3 +1,4 @@
+@tool
 extends RefCounted
 ## Внешность сюжетных персонажей. Рисуются кодом в катсценах, жителями на уровнях
 ## и «телами» побеждённых боссов. feet — точка ног, s — масштаб.
@@ -30,6 +31,19 @@ const NAMES := {
 
 static func height(id: String) -> float:
 	return LOOKS.get(id, LOOKS.farmer).h
+
+
+## Житель на уровне (в игре и в редакторе уровней).
+static func draw_npc(ci: CanvasItem, id: String, t := 0.0) -> void:
+	if id == "smith_wounded":
+		# раненый кузнец лежит на земле
+		ci.draw_rect(Rect2(-26, -16, 52, 16), Color(0.35, 0.45, 0.75))
+		ci.draw_rect(Rect2(-6, -16, 22, 16), Color(0.45, 0.3, 0.18))
+		ci.draw_rect(Rect2(-34, -14, 10, 10), Color(0.75, 0.75, 0.75))
+		ci.draw_rect(Rect2(-26, -16, 52, 16), Color(0.15, 0.2, 0.35), false, 2.0)
+		ci.draw_circle(Vector2(10, -2), 6, Color(0.7, 0.05, 0.05, 0.7))
+	else:
+		draw(ci, id, Vector2.ZERO, 1.0, "stand", -1, t)
 
 
 static func draw(ci: CanvasItem, id: String, feet: Vector2, s := 1.0, pose := "stand", facing := 1, t := 0.0, weapons := true) -> void:
