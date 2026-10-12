@@ -28,6 +28,8 @@ var revealed_skills: Array = []
 ## Катсцена, которую надо показать, и куда идти после неё.
 var pending_cutscene: Array = []
 var pending_next := "world_map"
+## Уровень-сцена, запущенная из редактора по F6 (levels/*.tscn). Пока не пусто — игра не сохраняется.
+var test_scene := ""
 
 
 func _ready() -> void:
@@ -264,6 +266,8 @@ func go_to_main_menu() -> void:
 # --- Сохранение ------------------------------------------------------------
 
 func save_game() -> void:
+	if test_scene != "":
+		return
 	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if f == null:
 		return
